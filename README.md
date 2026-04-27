@@ -4,6 +4,8 @@ Polis is an experimental Minecraft multi-agent society lab. The long-term aim is
 
 The current milestone is intentionally narrower: prove out a deterministic bot body. A PaperMC server runs elsewhere, while local Mineflayer clients connect as real players, perceive the world, log structured events, and respond to a few auditable human-issued commands.
 
+An optional constrained autonomy mode now exists as a thin intent layer. When enabled, an LLM may only choose from a fixed allowlist and the existing deterministic skills still perform the work.
+
 ## Current milestone
 
 - Connect one or more named bots to a private Minecraft Java server
@@ -14,8 +16,14 @@ The current milestone is intentionally narrower: prove out a deterministic bot b
   - `<BotName> create chest`
   - `<BotName> follow me`
   - `<BotName> stop`
+- Support optional constrained autonomy with allowlisted intents:
+  - `chat`
+  - `status`
+  - `collect_wood`
+  - `create_chest`
+  - `idle`
 
-No LLM calls, agent memory stores, economies, governance, or autonomous planning are implemented yet.
+No arbitrary Minecraft commands, arbitrary movement, combat, trading, governance, or broader autonomous planning are implemented.
 
 ## Requirements
 
@@ -44,6 +52,9 @@ LOG_DIR=logs
 BASE_X=
 BASE_Y=
 BASE_Z=
+AUTONOMY_ENABLED=false
+LLM_PROVIDER=openai
+AUTONOMY_TICK_SECONDS=30
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 ```
@@ -52,6 +63,10 @@ ANTHROPIC_API_KEY=
 - `MC_VERSION` is optional. Leave it blank to let Mineflayer negotiate when possible.
 - `LOG_DIR` defaults to `logs`, where raw event data is written to `events.jsonl`.
 - `BASE_X`, `BASE_Y`, and `BASE_Z` are optional and let chest placement prefer a shared base area when configured.
+- `AUTONOMY_ENABLED` enables the constrained LLM intent loop when set to `true`.
+- `LLM_PROVIDER` currently supports `openai`.
+- `AUTONOMY_TICK_SECONDS` sets the minimum delay between LLM decisions.
+- `OPENAI_API_KEY` is required only when autonomy is enabled with the OpenAI provider.
 
 Agent identities live in [`configs/agents`](./configs/agents) as simple JSON files. The runner loads one with `--agent`.
 
@@ -67,6 +82,12 @@ Equivalent direct invocation:
 
 ```bash
 pnpm --filter @polis/bot-runner dev -- --agent Ada
+```
+
+With constrained autonomy enabled:
+
+```bash
+AUTONOMY_ENABLED=true LLM_PROVIDER=openai AUTONOMY_TICK_SECONDS=30 pnpm bot:ada
 ```
 
 ## Autonomous smoke run
@@ -104,6 +125,18 @@ From a human player on the server:
 - `Ada stop`
 
 Replace `Ada` with any configured bot name.
+
+## Constrained autonomy
+
+When autonomy is enabled, the bot runner:
+
+- builds a small prompt from recent perception, inventory, nearby players, recent chat, and recent skill results
+- requests one JSON decision per autonomy tick
+- validates the response with Zod
+- treats invalid output as `idle`
+- executes only existing deterministic skills
+
+The model is not allowed to emit arbitrary Minecraft commands, movement goals, combat actions, withdrawals, trading, governance actions, religion, or conflict behavior.
 
 ## Safety notes
 

@@ -3,6 +3,22 @@ import type { EventPayload } from "./log.js";
 
 type KnownEntity = Bot["entities"][number];
 
+export type PerceptionSnapshot = {
+  health: number;
+  food: number;
+  position: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  nearbyPlayers: string[];
+  nearbyEntities: string[];
+  inventorySummary: Array<{
+    name: string;
+    count: number;
+  }>;
+};
+
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
@@ -11,7 +27,7 @@ function summarizeEntity(entity: KnownEntity): string {
   return entity.displayName || entity.name || entity.type;
 }
 
-export function buildPerceptionSnapshot(bot: Bot): EventPayload {
+export function buildPerceptionSnapshot(bot: Bot): PerceptionSnapshot & EventPayload {
   const nearbyEntities = Object.values(bot.entities)
     .filter((entity) => entity.id !== bot.entity.id)
     .sort((left, right) => left.position.distanceTo(bot.entity.position) - right.position.distanceTo(bot.entity.position))

@@ -3,6 +3,10 @@ import { z } from "zod";
 
 export const ActionSchema = z.discriminatedUnion("kind", [
   z.object({
+    kind: z.literal("chat"),
+    message: z.string().trim().min(1).max(120)
+  }),
+  z.object({
     kind: z.literal("status")
   }),
   z.object({
@@ -17,6 +21,9 @@ export const ActionSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("stop")
+  }),
+  z.object({
+    kind: z.literal("idle")
   }),
   z.object({
     kind: z.literal("noop")

@@ -9,6 +9,31 @@ const OptionalCoordinateSchema = z.preprocess(
   z.coerce.number().finite().optional()
 );
 
+const OptionalBooleanSchema = z.preprocess((value) => {
+  if (value === "") {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === "true") {
+      return true;
+    }
+
+    if (normalized === "false") {
+      return false;
+    }
+  }
+
+  return value;
+}, z.boolean().default(false));
+
+const LlmProviderSchema = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.enum(["openai"]).default("openai")
+);
+
 const EnvSchema = z.object({
   MC_HOST: z.string().min(1, "MC_HOST is required"),
   MC_PORT: z.coerce.number().int().min(1).max(65535),
@@ -17,6 +42,9 @@ const EnvSchema = z.object({
   BASE_X: OptionalCoordinateSchema,
   BASE_Y: OptionalCoordinateSchema,
   BASE_Z: OptionalCoordinateSchema,
+  AUTONOMY_ENABLED: OptionalBooleanSchema,
+  LLM_PROVIDER: LlmProviderSchema,
+  AUTONOMY_TICK_SECONDS: z.coerce.number().int().min(5).max(3600).default(30),
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional()
 }).superRefine((env, context) => {
@@ -41,6 +69,7 @@ const AgentConfigSchema = z.object({
 
 export type RuntimeEnv = z.infer<typeof EnvSchema>;
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+export type LlmProviderName = RuntimeEnv["LLM_PROVIDER"];
 export type BaseLocation = {
   x: number;
   y: number;

@@ -1,7 +1,7 @@
 import type { Bot } from "mineflayer";
 import type { Action } from "./decisions.js";
 import { getConfiguredBaseLocation, type RuntimeEnv } from "./config.js";
-import type { EventLogger } from "./log.js";
+import type { EventLogger, EventPayload } from "./log.js";
 import { sendChat } from "./skills/chat.js";
 import { collectWood } from "./skills/collectWood.js";
 import { createSharedChest } from "./skills/createSharedChest.js";
@@ -16,15 +16,40 @@ type ExecuteActionInput = {
   eventLogger: EventLogger;
 };
 
-export async function executeAction(input: ExecuteActionInput): Promise<void> {
+export type ExecutionResult = {
+  action: Action["kind"];
+  ok: boolean;
+  summary: string;
+  details: EventPayload;
+};
+
+export async function executeAction(input: ExecuteActionInput): Promise<ExecutionResult> {
   const { bot, action, env, eventLogger } = input;
 
   switch (action.kind) {
+    case "chat": {
+      sendChat(bot, action.message);
+      return {
+        action: "chat",
+        ok: true,
+        summary: "chat_sent",
+        details: {
+          message: action.message
+        }
+      };
+    }
     case "status": {
       const message = buildStatusMessage(bot);
       sendChat(bot, message);
       eventLogger.logEvent("status_report", { message });
-      return;
+      return {
+        action: "status",
+        ok: true,
+        summary: "status_reported",
+        details: {
+          message
+        }
+      };
     }
     case "collect_wood": {
       const result = await collectWood(bot, {
@@ -37,7 +62,21 @@ export async function executeAction(input: ExecuteActionInput): Promise<void> {
         sendChat(bot, `collect wood failed: ${result.reason}`);
       }
 
-      return;
+      return {
+        action: "collect_wood",
+        ok: result.ok,
+        summary: result.ok ? "collect_wood_completed" : "collect_wood_failed",
+        details: result.ok
+          ? {
+              collectedCount: result.collectedCount,
+              blocksDug: result.blocksDug
+            }
+          : {
+              collectedCount: result.collectedCount,
+              blocksDug: result.blocksDug,
+              reason: result.reason
+            }
+      };
     }
     case "create_chest": {
       const result = await createSharedChest(bot, {
@@ -54,7 +93,21 @@ export async function executeAction(input: ExecuteActionInput): Promise<void> {
         sendChat(bot, `create chest failed: ${result.reason}`);
       }
 
-      return;
+      return {
+        action: "create_chest",
+        ok: result.ok,
+        summary: result.ok ? "create_chest_completed" : "create_chest_failed",
+        details: result.ok
+          ? {
+              chestLocation: result.chestLocation,
+              craftingTableLocation: result.craftingTableLocation ?? null
+            }
+          : {
+              reason: result.reason,
+              chestLocation: result.chestLocation ?? null,
+              craftingTableLocation: result.craftingTableLocation ?? null
+            }
+      };
     }
     case "follow_player": {
       const started = followPlayer(bot, action.targetPlayer);
@@ -64,16 +117,41 @@ export async function executeAction(input: ExecuteActionInput): Promise<void> {
       } else {
         sendChat(bot, `cannot see ${action.targetPlayer}`);
       }
-      return;
+      return {
+        action: "follow_player",
+        ok: started,
+        summary: started ? "follow_started" : "follow_target_not_visible",
+        details: {
+          targetPlayer: action.targetPlayer
+        }
+      };
     }
     case "stop": {
       stopBot(bot);
       sendChat(bot, "stopping");
       eventLogger.logEvent("follow_stopped");
-      return;
+      return {
+        action: "stop",
+        ok: true,
+        summary: "stopped",
+        details: {}
+      };
+    }
+    case "idle": {
+      return {
+        action: "idle",
+        ok: true,
+        summary: "idle",
+        details: {}
+      };
     }
     case "noop": {
-      return;
+      return {
+        action: "noop",
+        ok: true,
+        summary: "noop",
+        details: {}
+      };
     }
   }
 }

@@ -1,5 +1,6 @@
 import mineflayer from "mineflayer";
 import pathfinderModule from "mineflayer-pathfinder";
+import { createAutonomyController } from "./autonomy.js";
 import type { AgentConfig, RuntimeEnv } from "./config.js";
 import { decideFromChat } from "./decisions.js";
 import { executeAction } from "./execute.js";
@@ -29,12 +30,20 @@ export function createConfiguredBot(input: CreateBotInput) {
 
   bot.loadPlugin(pathfinder);
 
+  const autonomy = createAutonomyController({
+    bot,
+    env,
+    agent,
+    eventLogger
+  });
+
   bot.once("spawn", () => {
     eventLogger.logEvent("bot_spawned", {
       username: bot.username,
       agent: agent.name
     });
     sendChat(bot, `${bot.username} awake.`);
+    autonomy.start();
   });
 
   bot.on("chat", (sender, message) => {
@@ -46,6 +55,7 @@ export function createConfiguredBot(input: CreateBotInput) {
       sender,
       message
     });
+    autonomy.recordChat(sender, message);
 
     const action = decideFromChat({
       botUsername: bot.username,
@@ -59,13 +69,17 @@ export function createConfiguredBot(input: CreateBotInput) {
       action,
       env,
       eventLogger
-    }).catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      eventLogger.logEvent("bot_error", {
-        username: bot.username,
-        message
+    })
+      .then((result) => {
+        autonomy.recordSkillResult(result, "manual");
+      })
+      .catch((error: unknown) => {
+        const failureMessage = error instanceof Error ? error.message : String(error);
+        eventLogger.logEvent("bot_error", {
+          username: bot.username,
+          message: failureMessage
+        });
       });
-    });
   });
 
   bot.on("death", () => {
@@ -89,12 +103,18 @@ export function createConfiguredBot(input: CreateBotInput) {
     });
   });
 
+  bot.on("end", () => {
+    autonomy.stop();
+  });
+
   setInterval(() => {
     if (!bot.entity) {
       return;
     }
 
-    eventLogger.logEvent("perception_tick", buildPerceptionSnapshot(bot));
+    const snapshot = buildPerceptionSnapshot(bot);
+    autonomy.recordPerception(snapshot);
+    eventLogger.logEvent("perception_tick", snapshot);
   }, 10_000).unref();
 
   return bot;
