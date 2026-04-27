@@ -1,7 +1,8 @@
 import type { Bot } from "mineflayer";
 import pathfinderModule from "mineflayer-pathfinder";
+import { createGroundMovements } from "./movements.js";
 
-const { goals, Movements } = pathfinderModule;
+const { goals } = pathfinderModule;
 
 export function followPlayer(bot: Bot, playerName: string): boolean {
   const player = bot.players[playerName];
@@ -11,10 +12,10 @@ export function followPlayer(bot: Bot, playerName: string): boolean {
     return false;
   }
 
-  const movement = new Movements(bot);
-  movement.canDig = false;
-  movement.allow1by1towers = false;
-  bot.pathfinder.setMovements(movement);
+  bot.pathfinder.setMovements(createGroundMovements(bot, {
+    canDig: false,
+    maxDropDown: 8
+  }));
   bot.pathfinder.setGoal(new goals.GoalFollow(entity, 1), true);
 
   return true;

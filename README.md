@@ -10,6 +10,8 @@ The current milestone is intentionally narrower: prove out a deterministic bot b
 - Log spawn, chat, death, kick, error, and periodic perception events as JSONL
 - Support deterministic commands:
   - `<BotName> status`
+  - `<BotName> collect wood`
+  - `<BotName> create chest`
   - `<BotName> follow me`
   - `<BotName> stop`
 
@@ -39,6 +41,9 @@ MC_HOST=192.168.1.50
 MC_PORT=25565
 MC_VERSION=
 LOG_DIR=logs
+BASE_X=
+BASE_Y=
+BASE_Z=
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 ```
@@ -46,6 +51,7 @@ ANTHROPIC_API_KEY=
 - `MC_HOST` and `MC_PORT` should point at the external PaperMC server.
 - `MC_VERSION` is optional. Leave it blank to let Mineflayer negotiate when possible.
 - `LOG_DIR` defaults to `logs`, where raw event data is written to `events.jsonl`.
+- `BASE_X`, `BASE_Y`, and `BASE_Z` are optional and let chest placement prefer a shared base area when configured.
 
 Agent identities live in [`configs/agents`](./configs/agents) as simple JSON files. The runner loads one with `--agent`.
 
@@ -54,7 +60,7 @@ Agent identities live in [`configs/agents`](./configs/agents) as simple JSON fil
 Ada:
 
 ```bash
-pnpm dev:ada
+pnpm bot:ada
 ```
 
 Equivalent direct invocation:
@@ -92,6 +98,8 @@ This is still a real server integration, not a mock. It assumes your server setu
 From a human player on the server:
 
 - `Ada status`
+- `Ada collect wood`
+- `Ada create chest`
 - `Ada follow me`
 - `Ada stop`
 

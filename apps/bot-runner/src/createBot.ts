@@ -54,10 +54,17 @@ export function createConfiguredBot(input: CreateBotInput) {
       agent
     });
 
-    executeAction({
+    void executeAction({
       bot,
       action,
+      env,
       eventLogger
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      eventLogger.logEvent("bot_error", {
+        username: bot.username,
+        message
+      });
     });
   });
 

@@ -10,6 +10,32 @@ const mockAgent = {
 };
 
 describe("decideFromChat", () => {
+  it("maps a collect wood command to a validated action", () => {
+    const action = decideFromChat({
+      botUsername: "Ada",
+      sender: "Steve",
+      message: "Ada collect wood",
+      agent: mockAgent
+    });
+
+    expect(validateAction(action)).toEqual({
+      kind: "collect_wood"
+    });
+  });
+
+  it("maps a create chest command to a validated action", () => {
+    const action = decideFromChat({
+      botUsername: "Ada",
+      sender: "Steve",
+      message: "Ada create chest",
+      agent: mockAgent
+    });
+
+    expect(validateAction(action)).toEqual({
+      kind: "create_chest"
+    });
+  });
+
   it("maps a follow command to a validated action", () => {
     const action = decideFromChat({
       botUsername: "Ada",

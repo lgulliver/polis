@@ -6,6 +6,12 @@ export const ActionSchema = z.discriminatedUnion("kind", [
     kind: z.literal("status")
   }),
   z.object({
+    kind: z.literal("collect_wood")
+  }),
+  z.object({
+    kind: z.literal("create_chest")
+  }),
+  z.object({
     kind: z.literal("follow_player"),
     targetPlayer: z.string().min(1)
   }),
@@ -43,6 +49,14 @@ export function decideFromChat(input: ChatDecisionInput): Action {
 
   if (command === "status") {
     return { kind: "status" };
+  }
+
+  if (command === "collect wood") {
+    return { kind: "collect_wood" };
+  }
+
+  if (command === "create chest") {
+    return { kind: "create_chest" };
   }
 
   if (command === "follow me") {
