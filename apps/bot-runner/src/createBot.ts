@@ -7,6 +7,7 @@ import { executeAction } from "./execute.js";
 import type { EventLogger } from "./log.js";
 import { buildPerceptionSnapshot } from "./perceive.js";
 import { sendChat } from "./skills/chat.js";
+import { installPathRecovery } from "./skills/pathRecovery.js";
 
 const { pathfinder } = pathfinderModule;
 
@@ -29,6 +30,7 @@ export function createConfiguredBot(input: CreateBotInput) {
   );
 
   bot.loadPlugin(pathfinder);
+  const detachPathRecovery = installPathRecovery(bot, eventLogger);
 
   const autonomy = createAutonomyController({
     bot,
@@ -104,6 +106,7 @@ export function createConfiguredBot(input: CreateBotInput) {
   });
 
   bot.on("end", () => {
+    detachPathRecovery();
     autonomy.stop();
   });
 
