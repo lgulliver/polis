@@ -1,0 +1,45 @@
+import { config as loadDotEnv } from "dotenv";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { z } from "zod";
+
+loadDotEnv();
+
+const EnvSchema = z.object({
+  MC_HOST: z.string().min(1, "MC_HOST is required"),
+  MC_PORT: z.coerce.number().int().min(1).max(65535),
+  MC_VERSION: z.string().optional().transform((value) => value?.trim() || undefined),
+  LOG_DIR: z.string().default("logs"),
+  OPENAI_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional()
+});
+
+const AgentConfigSchema = z.object({
+  name: z.string().min(1),
+  username: z.string().min(1),
+  archetype: z.string().min(1),
+  persona: z.string().min(1),
+  description: z.string().min(1)
+});
+
+export type RuntimeEnv = z.infer<typeof EnvSchema>;
+export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(currentDir, "../../../");
+
+export function getRepoRoot(): string {
+  return repoRoot;
+}
+
+export function loadRuntimeEnv(): RuntimeEnv {
+  return EnvSchema.parse(process.env);
+}
+
+export function loadAgentConfig(agentName: string): AgentConfig {
+  const agentFile = path.join(repoRoot, "configs", "agents", `${agentName}.json`);
+  const raw = readFileSync(agentFile, "utf8");
+  const parsed = JSON.parse(raw) as unknown;
+  return AgentConfigSchema.parse(parsed);
+}

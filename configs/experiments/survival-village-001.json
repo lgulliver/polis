@@ -1,0 +1,18 @@
+{
+  "id": "survival-village-001",
+  "name": "Survival Village 001",
+  "description": "Initial private-world smoke test for deterministic multi-bot presence and observation.",
+  "agents": [
+    "Ada",
+    "Hopper",
+    "Turing",
+    "Mira",
+    "Sagan"
+  ],
+  "worldMode": "hard-survival",
+  "notes": [
+    "External PaperMC server on Unraid",
+    "Private access only",
+    "No autonomous LLM behavior in milestone 1"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "polis",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.9.0",
+  "scripts": {
+    "dev:ada": "pnpm --filter @polis/bot-runner dev -- --agent Ada",
+    "dev:hopper": "pnpm --filter @polis/bot-runner dev -- --agent Hopper",
+    "dev:turing": "pnpm --filter @polis/bot-runner dev -- --agent Turing",
+    "dev:mira": "pnpm --filter @polis/bot-runner dev -- --agent Mira",
+    "dev:sagan": "pnpm --filter @polis/bot-runner dev -- --agent Sagan",
+    "smoke:ada": "pnpm --filter @polis/bot-runner smoke -- --agent Ada",
+    "test": "pnpm --filter @polis/bot-runner test",
+    "typecheck": "pnpm --filter @polis/bot-runner exec tsc -p tsconfig.json --noEmit --pretty false",
+    "lint": "node -e \"console.log('No linter configured yet')\""
+  }
+}
