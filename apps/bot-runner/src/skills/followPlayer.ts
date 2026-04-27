@@ -1,5 +1,7 @@
 import type { Bot } from "mineflayer";
-import { goals, Movements } from "mineflayer-pathfinder";
+import pathfinderModule from "mineflayer-pathfinder";
+
+const { goals, Movements } = pathfinderModule;
 
 export function followPlayer(bot: Bot, playerName: string): boolean {
   const player = bot.players[playerName];

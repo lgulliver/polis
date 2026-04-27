@@ -1,11 +1,13 @@
 import mineflayer from "mineflayer";
-import { pathfinder } from "mineflayer-pathfinder";
+import pathfinderModule from "mineflayer-pathfinder";
 import type { AgentConfig, RuntimeEnv } from "./config.js";
 import { decideFromChat } from "./decisions.js";
 import { executeAction } from "./execute.js";
 import type { EventLogger } from "./log.js";
 import { buildPerceptionSnapshot } from "./perceive.js";
 import { sendChat } from "./skills/chat.js";
+
+const { pathfinder } = pathfinderModule;
 
 type CreateBotInput = {
   env: RuntimeEnv;

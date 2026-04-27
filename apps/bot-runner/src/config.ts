@@ -4,8 +4,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
-loadDotEnv();
-
 const EnvSchema = z.object({
   MC_HOST: z.string().min(1, "MC_HOST is required"),
   MC_PORT: z.coerce.number().int().min(1).max(65535),
@@ -28,6 +26,8 @@ export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(currentDir, "../../../");
+
+loadDotEnv({ path: path.join(repoRoot, ".env") });
 
 export function getRepoRoot(): string {
   return repoRoot;
