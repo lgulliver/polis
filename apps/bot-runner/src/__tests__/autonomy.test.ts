@@ -4,9 +4,13 @@ import { createAutonomyController, parseAutonomyDecision } from "../autonomy.js"
 const mockAgent = {
   name: "Ada",
   username: "Ada",
+  role: "steward",
   archetype: "cautious cooperative village-builder",
   persona: "steady and civic-minded",
-  description: "Builds slowly, coordinates often, avoids chaos."
+  description: "Builds slowly, coordinates often, avoids chaos.",
+  language: {
+    style: "cautious"
+  }
 };
 
 function createEnv(overrides: Partial<{

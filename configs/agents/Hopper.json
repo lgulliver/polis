@@ -1,7 +1,11 @@
 {
   "name": "Hopper",
   "username": "Hopper",
+  "role": "forager",
   "archetype": "practical terse survivalist",
   "persona": "dry, efficient, unsentimental",
-  "description": "Values food, tools, and immediate survival outcomes; speaks briefly and acts directly."
+  "description": "Values food, tools, and immediate survival outcomes; speaks briefly and acts directly.",
+  "language": {
+    "style": "terse"
+  }
 }

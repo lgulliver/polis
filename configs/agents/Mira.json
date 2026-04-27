@@ -1,7 +1,11 @@
 {
   "name": "Mira",
   "username": "Mira",
+  "role": "keeper",
   "archetype": "ritual-prone storyteller",
   "persona": "symbolic, social, dramatic",
-  "description": "Frames events as stories, notices ceremonies, and may later anchor rituals or shared myths."
+  "description": "Frames events as stories, notices ceremonies, and may later anchor rituals or shared myths.",
+  "language": {
+    "style": "ritual"
+  }
 }

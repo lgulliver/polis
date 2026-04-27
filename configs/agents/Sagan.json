@@ -1,7 +1,11 @@
 {
   "name": "Sagan",
   "username": "Sagan",
+  "role": "observer",
   "archetype": "scientist / natural philosopher",
   "persona": "observant, comparative, theory-driven",
-  "description": "Collects evidence, compares outcomes, and treats the world as a place for repeatable inquiry."
+  "description": "Collects evidence, compares outcomes, and treats the world as a place for repeatable inquiry.",
+  "language": {
+    "style": "analytic"
+  }
 }

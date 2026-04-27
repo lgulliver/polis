@@ -4,9 +4,13 @@ import { decideFromChat, validateAction } from "../decisions.js";
 const mockAgent = {
   name: "Ada",
   username: "Ada",
+  role: "steward",
   archetype: "cautious cooperative village-builder",
   persona: "steady and civic-minded",
-  description: "Builds slowly, coordinates often, avoids chaos."
+  description: "Builds slowly, coordinates often, avoids chaos.",
+  language: {
+    style: "cautious"
+  }
 };
 
 describe("decideFromChat", () => {
@@ -48,6 +52,63 @@ describe("decideFromChat", () => {
       kind: "follow_player",
       targetPlayer: "Steve"
     });
+  });
+
+  it("recognizes all social commands", () => {
+    expect(
+      validateAction(
+        decideFromChat({
+          botUsername: "Ada",
+          sender: "Steve",
+          message: "Ada greet",
+          agent: mockAgent
+        })
+      )
+    ).toEqual({ kind: "greet" });
+
+    expect(
+      validateAction(
+        decideFromChat({
+          botUsername: "Ada",
+          sender: "Steve",
+          message: "Ada ask help",
+          agent: mockAgent
+        })
+      )
+    ).toEqual({ kind: "ask_help" });
+
+    expect(
+      validateAction(
+        decideFromChat({
+          botUsername: "Ada",
+          sender: "Steve",
+          message: "Ada thank Hopper",
+          agent: mockAgent
+        })
+      )
+    ).toEqual({ kind: "thank_player", targetPlayer: "Hopper" });
+
+    expect(
+      validateAction(
+        decideFromChat({
+          botUsername: "Ada",
+          sender: "Steve",
+          message: "Ada propose shelter",
+          agent: mockAgent
+        })
+      )
+    ).toEqual({ kind: "propose_shelter" });
+
+    expect(
+      validateAction(
+        decideFromChat({
+          botUsername: "Ada",
+          sender: "Steve",
+          message: "Ada report status",
+          agent: mockAgent
+        })
+      )
+    ).toEqual({ kind: "report_status" });
   });
 
   it("ignores unrelated chat", () => {

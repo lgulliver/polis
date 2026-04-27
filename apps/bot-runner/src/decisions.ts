@@ -1,11 +1,23 @@
 import type { AgentConfig } from "./config.js";
 import { z } from "zod";
+import {
+  AskHelpActionSchema,
+  GreetActionSchema,
+  ProposeShelterActionSchema,
+  ReportStatusActionSchema,
+  ThankPlayerActionSchema
+} from "./social/actions.js";
 
 export const ActionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("chat"),
     message: z.string().trim().min(1).max(120)
   }),
+  GreetActionSchema,
+  AskHelpActionSchema,
+  ThankPlayerActionSchema,
+  ProposeShelterActionSchema,
+  ReportStatusActionSchema,
   z.object({
     kind: z.literal("status")
   }),
@@ -52,25 +64,53 @@ export function decideFromChat(input: ChatDecisionInput): Action {
     return { kind: "noop" };
   }
 
-  const command = lowered.slice(botName.length).trim();
+  const command = normalized.slice(input.botUsername.length).trim();
+  const loweredCommand = command.toLowerCase();
 
-  if (command === "status") {
+  if (loweredCommand === "greet") {
+    return { kind: "greet" };
+  }
+
+  if (loweredCommand === "ask help") {
+    return { kind: "ask_help" };
+  }
+
+  if (loweredCommand.startsWith("thank ")) {
+    const targetPlayer = command.slice("thank ".length).trim();
+
+    if (targetPlayer.length > 0) {
+      return {
+        kind: "thank_player",
+        targetPlayer
+      };
+    }
+  }
+
+  if (loweredCommand === "propose shelter") {
+    return { kind: "propose_shelter" };
+  }
+
+  if (loweredCommand === "report status") {
+    return { kind: "report_status" };
+  }
+
+  if (loweredCommand === "status") {
     return { kind: "status" };
   }
 
-  if (command === "collect wood") {
+  if (loweredCommand === "collect wood") {
     return { kind: "collect_wood" };
   }
 
-  if (command === "create chest") {
+  if (loweredCommand === "create chest") {
     return { kind: "create_chest" };
   }
 
-  if (command === "follow me") {
+  if (loweredCommand === "follow me") {
     return { kind: "follow_player", targetPlayer: input.sender };
   }
 
-  if (command === "stop") {
+  if (loweredCommand === "stop") {
     return { kind: "stop" };
   }
 

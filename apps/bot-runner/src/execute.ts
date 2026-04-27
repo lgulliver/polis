@@ -2,6 +2,7 @@ import type { Bot } from "mineflayer";
 import type { Action } from "./decisions.js";
 import { getConfiguredBaseLocation, type RuntimeEnv } from "./config.js";
 import type { EventLogger, EventPayload } from "./log.js";
+import type { SocialController } from "./social/actions.js";
 import { sendChat } from "./skills/chat.js";
 import { collectWood } from "./skills/collectWood.js";
 import { createSharedChest } from "./skills/createSharedChest.js";
@@ -14,6 +15,7 @@ type ExecuteActionInput = {
   action: Action;
   env: RuntimeEnv;
   eventLogger: EventLogger;
+  socialController?: SocialController;
 };
 
 export type ExecutionResult = {
@@ -27,6 +29,25 @@ export async function executeAction(input: ExecuteActionInput): Promise<Executio
   const { bot, action, env, eventLogger } = input;
 
   switch (action.kind) {
+    case "greet":
+    case "ask_help":
+    case "thank_player":
+    case "propose_shelter":
+    case "report_status": {
+      if (!input.socialController) {
+        return {
+          action: action.kind,
+          ok: false,
+          summary: "social_controller_unavailable",
+          details: {}
+        };
+      }
+
+      return {
+        action: action.kind,
+        ...input.socialController.execute(action)
+      };
+    }
     case "chat": {
       sendChat(bot, action.message);
       return {

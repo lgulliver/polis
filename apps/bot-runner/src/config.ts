@@ -1,5 +1,5 @@
 import { config as loadDotEnv } from "dotenv";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
@@ -62,9 +62,13 @@ const EnvSchema = z.object({
 const AgentConfigSchema = z.object({
   name: z.string().min(1),
   username: z.string().min(1),
+  role: z.string().min(1),
   archetype: z.string().min(1),
   persona: z.string().min(1),
-  description: z.string().min(1)
+  description: z.string().min(1),
+  language: z.object({
+    style: z.string().min(1)
+  })
 });
 
 export type RuntimeEnv = z.infer<typeof EnvSchema>;
@@ -106,4 +110,10 @@ export function loadAgentConfig(agentName: string): AgentConfig {
   const raw = readFileSync(agentFile, "utf8");
   const parsed = JSON.parse(raw) as unknown;
   return AgentConfigSchema.parse(parsed);
+}
+
+export function listConfiguredAgentNames(): string[] {
+  return readdirSync(path.join(repoRoot, "configs", "agents"))
+    .filter((entry) => entry.endsWith(".json"))
+    .map((entry) => path.parse(entry).name);
 }

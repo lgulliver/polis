@@ -11,6 +11,11 @@ An optional constrained autonomy mode now exists as a thin intent layer. When en
 - Connect one or more named bots to a private Minecraft Java server
 - Log spawn, chat, death, kick, error, and periodic perception events as JSONL
 - Support deterministic commands:
+  - `<BotName> greet`
+  - `<BotName> ask help`
+  - `<BotName> thank <OtherBot>`
+  - `<BotName> propose shelter`
+  - `<BotName> report status`
   - `<BotName> status`
   - `<BotName> collect wood`
   - `<BotName> create chest`
@@ -118,6 +123,11 @@ This is still a real server integration, not a mock. It assumes your server setu
 
 From a human player on the server:
 
+- `Ada greet`
+- `Ada ask help`
+- `Ada thank Hopper`
+- `Ada propose shelter`
+- `Ada report status`
 - `Ada status`
 - `Ada collect wood`
 - `Ada create chest`

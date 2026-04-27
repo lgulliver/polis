@@ -1,11 +1,17 @@
 import mineflayer from "mineflayer";
 import pathfinderModule from "mineflayer-pathfinder";
 import { createAutonomyController } from "./autonomy.js";
-import type { AgentConfig, RuntimeEnv } from "./config.js";
+import {
+  getConfiguredBaseLocation,
+  listConfiguredAgentNames,
+  type AgentConfig,
+  type RuntimeEnv
+} from "./config.js";
 import { decideFromChat } from "./decisions.js";
 import { executeAction } from "./execute.js";
 import type { EventLogger } from "./log.js";
 import { buildPerceptionSnapshot } from "./perceive.js";
+import { createSocialController } from "./social/actions.js";
 import { sendChat } from "./skills/chat.js";
 import { installPathRecovery } from "./skills/pathRecovery.js";
 
@@ -28,6 +34,7 @@ export function createConfiguredBot(input: CreateBotInput) {
   const bot = mineflayer.createBot(
     env.MC_VERSION ? { ...botOptions, version: env.MC_VERSION } : botOptions
   );
+  const preferredBaseLocation = getConfiguredBaseLocation(env);
 
   bot.loadPlugin(pathfinder);
   const detachPathRecovery = installPathRecovery(bot, eventLogger);
@@ -38,6 +45,20 @@ export function createConfiguredBot(input: CreateBotInput) {
     agent,
     eventLogger
   });
+  const socialController = preferredBaseLocation
+    ? createSocialController({
+        bot,
+        agent,
+        eventLogger,
+        preferredBaseLocation,
+        knownBotNames: listConfiguredAgentNames()
+      })
+    : createSocialController({
+        bot,
+        agent,
+        eventLogger,
+        knownBotNames: listConfiguredAgentNames()
+      });
 
   bot.once("spawn", () => {
     eventLogger.logEvent("bot_spawned", {
@@ -58,6 +79,7 @@ export function createConfiguredBot(input: CreateBotInput) {
       message
     });
     autonomy.recordChat(sender, message);
+    socialController.observeChat(sender, message);
 
     const action = decideFromChat({
       botUsername: bot.username,
@@ -70,7 +92,8 @@ export function createConfiguredBot(input: CreateBotInput) {
       bot,
       action,
       env,
-      eventLogger
+      eventLogger,
+      socialController
     })
       .then((result) => {
         autonomy.recordSkillResult(result, "manual");
