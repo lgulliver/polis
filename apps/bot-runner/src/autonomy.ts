@@ -14,6 +14,7 @@ const MAX_RECENT_SKILL_RESULTS = 6;
 const MAX_RECENT_PERCEPTIONS = 4;
 
 const AutonomyDecisionSchema = z.object({
+  goal: z.string().trim().min(1).max(200),
   intention: z.string().trim().min(1).max(500),
   action: z.enum(["chat", "collect_wood", "create_chest", "explore", "forage", "idle"]),
   message: z.string().trim().min(1).max(120).nullable(),
@@ -74,6 +75,7 @@ export type AutonomyController = {
 
 function idleDecision(reason: string): AutonomyDecision {
   return {
+    goal: "recover and reassess",
     intention: "waiting",
     action: "idle",
     message: null,
@@ -158,6 +160,7 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
   let intervalHandle: SchedulerHandle | undefined;
   let actionInFlight = false;
   let lastDecisionAt = Number.NEGATIVE_INFINITY;
+  let currentGoal: string = input.agent.mission ?? "survive and contribute to the group";
 
   function recordPerception(snapshot: PerceptionSnapshot): void {
     pushBounded(recentPerceptions, snapshot, MAX_RECENT_PERCEPTIONS);
@@ -206,6 +209,7 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
       const prompt = buildAutonomyPrompt({
         agent: input.agent,
         currentState: stateMachine.getState(),
+        currentGoal,
         currentPerception,
         recentPerceptions,
         recentChat,
@@ -249,8 +253,15 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
         decision = idleDecision("llm_request_failed");
       }
 
+      // Persist the goal the LLM set this tick
+      if (decision.goal && decision.goal !== currentGoal) {
+        input.eventLogger.logEvent("goal_updated", { previous: currentGoal, current: decision.goal });
+        currentGoal = decision.goal;
+      }
+
       const action = toAction(decision);
       input.eventLogger.logEvent("autonomy_action_started", {
+        goal: currentGoal,
         intention: decision.intention,
         action: decision.action,
         reason: decision.reason

@@ -24,6 +24,7 @@ export type PromptSkillResult = {
 type BuildAutonomyPromptInput = {
   agent: AgentConfig;
   currentState: AgentState;
+  currentGoal: string;
   currentPerception: PerceptionSnapshot;
   recentPerceptions: PerceptionSnapshot[];
   recentChat: PromptChatEntry[];
@@ -53,8 +54,9 @@ function buildSystemPrompt(agent: AgentConfig): string {
     ``,
     `Return strict JSON only, with exactly these keys:`,
     `{`,
-    `  "intention": "<what you are working toward right now — private, never spoken>",`,
-    `  "action": "<one of the six above>",`,
+    `  "goal": "<your current multi-tick objective — update this if your situation demands a detour>",`,
+    `  "intention": "<what you are doing THIS tick to advance the goal — private, never spoken>",`,
+    `  "action": "<one of the actions above>",`,
     `  "message": "<string, or null>",`,
     `  "reason": "<short log note, never spoken>"`,
     `}`,
@@ -90,6 +92,7 @@ export function buildAutonomyPrompt(input: BuildAutonomyPromptInput): LlmPrompt 
       description: input.agent.description,
       mission: input.agent.mission
     },
+    currentGoal: input.currentGoal,
     currentState: input.currentState,
     currentPerception: input.currentPerception,
     recentPerceptions: input.recentPerceptions,
@@ -101,7 +104,9 @@ export function buildAutonomyPrompt(input: BuildAutonomyPromptInput): LlmPrompt 
     system: buildSystemPrompt(input.agent),
     user: [
       STATE_GUIDANCE[input.currentState],
-      "Choose the single best next action given your mission and what you currently perceive.",
+      `Your current goal: "${input.currentGoal}"`,
+      `You may update your goal if your situation has meaningfully changed (e.g. injury forces a detour to forage).`,
+      `Otherwise keep the same goal and choose the action that best advances it this tick.`,
       "Perception context:",
       JSON.stringify(context)
     ].join("\n")
