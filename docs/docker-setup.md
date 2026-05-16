@@ -1,26 +1,12 @@
 # Docker setup
 
-Run a complete local Polis environment — PaperMC server, Ollama (local LLM), and all five agents — with a single command.
+Run a complete local Polis environment — PaperMC server, Ollama (local LLM), and all five agents — with a single command. No API keys required.
 
 ## Requirements
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose plugin)
 - 3–4 GB free RAM for the Minecraft server and bots
-- NVIDIA GPU recommended for Ollama (8 GB VRAM handles `qwen2.5:7b` comfortably)
-
-## First-time setup
-
-Ollama needs to download the model before agents can make decisions. Run this once:
-
-```bash
-# Start Ollama only
-docker compose up -d ollama
-
-# Pull the model (2–5 minutes depending on connection speed)
-docker compose exec ollama ollama pull qwen2.5:7b
-```
-
-The model is cached in the `ollama-data` Docker volume — subsequent starts don't re-download it.
+- NVIDIA GPU recommended for Ollama (8 GB VRAM handles `qwen2.5:7b` comfortably — an RTX Ada 2000 or equivalent is ideal)
 
 ## Quick start
 
@@ -28,7 +14,9 @@ The model is cached in the `ollama-data` Docker volume — subsequent starts don
 docker compose up --build
 ```
 
-The first run also downloads PaperMC and Geyser. Expect 60–120 seconds before the server is ready and agents connect.
+That's it. On first run, `ollama-init` automatically pulls `qwen2.5:7b` (~4.4 GB) before any agent starts. The model is cached in the `ollama-data` Docker volume so subsequent starts are instant.
+
+The first run also downloads PaperMC and Geyser. Expect 2–5 minutes on first boot, then 60–90 seconds on subsequent starts.
 
 You'll know it's working when you see:
 
@@ -92,17 +80,22 @@ See the [README](../README.md) for the full command list.
 
 ## Changing the model
 
-Edit `OLLAMA_MODEL` in your `.env` or pass it inline. Any model available in the Ollama library works:
+Set `OLLAMA_MODEL` in your `.env` or pass it inline. The `ollama-init` container will pull the new model automatically on the next `docker compose up`:
 
 ```bash
-# Pull a different model
-docker compose exec ollama ollama pull llama3.2:3b
-
-# Run with it
 OLLAMA_MODEL=llama3.2:3b docker compose up
 ```
 
-Smaller models (`3b`) are faster but may produce less coherent decisions. `qwen2.5:7b` is the recommended default for structured JSON output.
+Model comparison:
+
+| Model | Size (q4) | Speed on 8 GB GPU | JSON quality | Notes |
+|---|---|---|---|---|
+| `qwen2.5:7b` | ~4.4 GB | Fast | Excellent | **Recommended default** |
+| `llama3.2:3b` | ~2 GB | Very fast | OK | Good for high agent counts |
+| `phi3:mini` | ~2.2 GB | Very fast | Good | Punches above weight |
+| `llama3.1:8b` | ~4.7 GB | Moderate | Good | Better reasoning |
+
+Smaller models are faster but may produce less coherent mission reasoning. `qwen2.5:7b` is the sweet spot for structured JSON output on an 8 GB GPU.
 
 ## Using OpenAI instead of Ollama
 

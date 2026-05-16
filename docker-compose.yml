@@ -11,11 +11,14 @@ x-bot-base: &bot-base
     LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
     OLLAMA_BASE_URL: http://ollama:11434/v1
     OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+    # Only needed when LLM_PROVIDER=openai
     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   depends_on:
     mc-server:
       condition: service_healthy
+    ollama-init:
+      condition: service_completed_successfully
   restart: on-failure
 
 services:
@@ -53,6 +56,11 @@ services:
       - "11434:11434"
     volumes:
       - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      start_period: 10s
+      interval: 5s
+      retries: 12
     # NVIDIA GPU passthrough — requires NVIDIA Container Toolkit
     # (Docker Desktop on Windows with WSL2 handles this automatically)
     deploy:
@@ -63,61 +71,50 @@ services:
               count: 1
               capabilities: [gpu]
 
+  # Pulls the model on first run (or after a model change). No-ops if already cached.
+  ollama-init:
+    image: ollama/ollama
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama pull ${OLLAMA_MODEL:-qwen2.5:7b}"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
   # ── Agents ──────────────────────────────────────────────────────────────────
   bot-ada:
     <<: *bot-base
     build:
       context: .
       args: { AGENT: Ada }
-    depends_on:
-      mc-server:
-        condition: service_healthy
-      ollama:
-        condition: service_started
 
   bot-hopper:
     <<: *bot-base
     build:
       context: .
       args: { AGENT: Hopper }
-    depends_on:
-      mc-server:
-        condition: service_healthy
-      ollama:
-        condition: service_started
 
   bot-turing:
     <<: *bot-base
     build:
       context: .
       args: { AGENT: Turing }
-    depends_on:
-      mc-server:
-        condition: service_healthy
-      ollama:
-        condition: service_started
 
   bot-mira:
     <<: *bot-base
     build:
       context: .
       args: { AGENT: Mira }
-    depends_on:
-      mc-server:
-        condition: service_healthy
-      ollama:
-        condition: service_started
 
   bot-sagan:
     <<: *bot-base
     build:
       context: .
       args: { AGENT: Sagan }
-    depends_on:
-      mc-server:
-        condition: service_healthy
-      ollama:
-        condition: service_started
 
 volumes:
   mc-data:
