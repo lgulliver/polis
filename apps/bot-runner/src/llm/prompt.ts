@@ -48,6 +48,7 @@ function buildSystemPrompt(agent: AgentConfig): string {
     `  explore       — wander to a new area 20–60 blocks away`,
     `  collect_wood  — navigate to and chop nearby trees`,
     `  create_chest  — place a shared chest at the base location`,
+    `  forage        — find and kill a nearby animal for food, or harvest crops, then eat`,
     `  idle          — wait and observe (use sparingly — prefer explore when nothing else to do)`,
     ``,
     `Return strict JSON only, with exactly these keys:`,
@@ -63,7 +64,8 @@ function buildSystemPrompt(agent: AgentConfig): string {
     `- intention is your private reasoning — it is logged but never spoken or shown to other agents`,
     `- reason is a short internal log note — it is never spoken`,
     `- keep message under 120 characters`,
-    `- if health or food is critically low, use idle and wait — do not spam chat`,
+    `- health regenerates only when food >= 18 out of 20 — if health is low AND food < 18, forage immediately`,
+    `- if health is low but food >= 18, use idle and wait for natural regeneration`,
     `- prefer explore over idle — standing still is wasted time`,
     `- nearbyEntities and nearbyPlayers include distance in blocks — use this to decide whether to engage`,
     `- do not reference external systems, APIs, or the fact that you are an AI`
@@ -75,7 +77,7 @@ const STATE_GUIDANCE: Record<AgentState, string> = {
   Exploring: "You are Exploring — continue exploring or return to gather resources if you found something.",
   Gathering: "You are Gathering — continue collecting or return to base once you have enough.",
   Socialising: "You are Socialising — engage with nearby agents/players or disengage when done.",
-  Resting: "You are Resting due to low health or food. Stay idle and wait to recover. Do NOT explore. Do NOT report status in chat.",
+  Resting: "You are Resting due to low health or food. If food < 18, FORAGE to get food and trigger health regeneration. If food >= 18, idle and wait for natural regen. Do NOT explore.",
   Planning: "You are Planning a new goal. Consider your mission and recent events before choosing an action."
 };
 

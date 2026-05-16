@@ -7,6 +7,7 @@ import { sendChat } from "./skills/chat.js";
 import { collectWood } from "./skills/collectWood.js";
 import { createSharedChest } from "./skills/createSharedChest.js";
 import { explore } from "./skills/explore.js";
+import { forage } from "./skills/forage.js";
 import { followPlayer } from "./skills/followPlayer.js";
 import { stopBot } from "./skills/stop.js";
 import { buildStatusMessage } from "./skills/status.js";
@@ -143,6 +144,20 @@ export async function executeAction(input: ExecuteActionInput): Promise<Executio
         details: result.ok
           ? { destination: result.destination, distanceTravelled: result.distanceTravelled }
           : { reason: result.reason }
+      };
+    }
+    case "forage": {
+      const result = await forage(bot, { eventLogger });
+      if (result.ok) {
+        sendChat(bot, `foraged: ${result.note}`);
+      } else {
+        sendChat(bot, `forage failed: ${result.reason}`);
+      }
+      return {
+        action: "forage",
+        ok: result.ok,
+        summary: result.ok ? "forage_completed" : "forage_failed",
+        details: result.ok ? { method: result.method, note: result.note } : { reason: result.reason }
       };
     }
     case "follow_player": {

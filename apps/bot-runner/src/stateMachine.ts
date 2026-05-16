@@ -12,9 +12,9 @@ const ACTION_STATE: Partial<Record<string, AgentState>> = {
   explore: "Exploring",
   collect_wood: "Gathering",
   create_chest: "Gathering",
+  forage: "Gathering",
   chat: "Socialising",
   follow_player: "Socialising",
-  status: "Idle",
   idle: "Idle",
   stop: "Idle",
   noop: "Idle"
@@ -61,7 +61,8 @@ export function createStateMachine(
   }
 
   function transitionFromAction(action: string, ok: boolean): void {
-    if (state === "Resting") return; // guards take priority
+    // In Resting, allow forage to proceed — it's the intended recovery action
+    if (state === "Resting" && action !== "forage") return;
 
     if (!ok) {
       // Failed actions return to Idle so the agent can replan
