@@ -12,9 +12,10 @@ services:
       PVP: "false"
       MAX_PLAYERS: 30
       MEMORY: "2G"
-      # Geyser allows Bedrock clients (Nintendo Switch, mobile) to connect
-      PLUGINS: >-
+      # Geyser for Bedrock/Switch + ViaVersion to bridge Java protocol versions
+      PLUGINS: |
         https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
+        https://hangar.papermc.io/ViaVersion/ViaVersion/versions/5.3.4/PAPER/download
     ports:
       - "25565:25565"       # Java Edition
       - "19132:19132/udp"   # Bedrock Edition via Geyser
