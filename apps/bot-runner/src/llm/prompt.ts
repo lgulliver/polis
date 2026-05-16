@@ -1,6 +1,7 @@
 import type { AgentConfig } from "../config.js";
 import type { EventPayload } from "../log.js";
 import type { PerceptionSnapshot } from "../perceive.js";
+import type { AgentState } from "../stateMachine.js";
 
 export type LlmPrompt = {
   system: string;
@@ -22,6 +23,7 @@ export type PromptSkillResult = {
 
 type BuildAutonomyPromptInput = {
   agent: AgentConfig;
+  currentState: AgentState;
   currentPerception: PerceptionSnapshot;
   recentPerceptions: PerceptionSnapshot[];
   recentChat: PromptChatEntry[];
@@ -69,6 +71,15 @@ function buildSystemPrompt(agent: AgentConfig): string {
   ].join("\n");
 }
 
+const STATE_GUIDANCE: Record<AgentState, string> = {
+  Idle: "You are Idle — choose what to do next.",
+  Exploring: "You are Exploring — continue exploring or return to gather resources if you found something.",
+  Gathering: "You are Gathering — continue collecting or return to base once you have enough.",
+  Socialising: "You are Socialising — engage with nearby agents/players or disengage when done.",
+  Resting: "You are Resting due to low health or food. Use status or idle until you recover. Do not explore.",
+  Planning: "You are Planning a new goal. Consider your mission and recent events before choosing an action."
+};
+
 export function buildAutonomyPrompt(input: BuildAutonomyPromptInput): LlmPrompt {
   const context = {
     agent: {
@@ -78,6 +89,7 @@ export function buildAutonomyPrompt(input: BuildAutonomyPromptInput): LlmPrompt 
       description: input.agent.description,
       mission: input.agent.mission
     },
+    currentState: input.currentState,
     currentPerception: input.currentPerception,
     recentPerceptions: input.recentPerceptions,
     recentChat: input.recentChat,
@@ -87,8 +99,8 @@ export function buildAutonomyPrompt(input: BuildAutonomyPromptInput): LlmPrompt 
   return {
     system: buildSystemPrompt(input.agent),
     user: [
+      STATE_GUIDANCE[input.currentState],
       "Choose the single best next action given your mission and what you currently perceive.",
-      "Use idle when no useful action is available.",
       "Perception context:",
       JSON.stringify(context)
     ].join("\n")

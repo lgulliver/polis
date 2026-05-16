@@ -7,6 +7,7 @@ import type { EventLogger } from "./log.js";
 import { buildPerceptionSnapshot, type PerceptionSnapshot } from "./perceive.js";
 import { createDecisionProvider, type DecisionProvider } from "./llm/provider.js";
 import { buildAutonomyPrompt, type PromptChatEntry, type PromptSkillResult } from "./llm/prompt.js";
+import { createStateMachine, type AgentState } from "./stateMachine.js";
 
 const MAX_RECENT_CHAT = 8;
 const MAX_RECENT_SKILL_RESULTS = 6;
@@ -68,6 +69,7 @@ export type AutonomyController = {
   recordPerception: (snapshot: PerceptionSnapshot) => void;
   recordChat: (sender: string, message: string) => void;
   recordSkillResult: (result: ExecutionResult, source: "manual" | "autonomy") => void;
+  getState: () => AgentState;
 };
 
 function idleDecision(reason: string): AutonomyDecision {
@@ -151,6 +153,7 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
   const recentPerceptions: PerceptionSnapshot[] = [];
   const tickMs = input.env.AUTONOMY_TICK_SECONDS * 1_000;
   const executeActionImpl = input.executeActionImpl ?? executeAction;
+  const stateMachine = createStateMachine("Idle", input.eventLogger, input.agent.name);
   let provider: DecisionProvider | undefined;
   let intervalHandle: SchedulerHandle | undefined;
   let actionInFlight = false;
@@ -158,6 +161,7 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
 
   function recordPerception(snapshot: PerceptionSnapshot): void {
     pushBounded(recentPerceptions, snapshot, MAX_RECENT_PERCEPTIONS);
+    stateMachine.applyGuards(snapshot.health, snapshot.food);
   }
 
   function recordChat(sender: string, message: string): void {
@@ -201,6 +205,7 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
 
       const prompt = buildAutonomyPrompt({
         agent: input.agent,
+        currentState: stateMachine.getState(),
         currentPerception,
         recentPerceptions,
         recentChat,
@@ -259,6 +264,7 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
       });
 
       recordSkillResult(result, "autonomy");
+      stateMachine.transitionFromAction(decision.action, result.ok);
 
       const payload = {
         intention: decision.intention,
@@ -307,6 +313,7 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
     tick,
     recordPerception,
     recordChat,
-    recordSkillResult
+    recordSkillResult,
+    getState: stateMachine.getState
   };
 }
