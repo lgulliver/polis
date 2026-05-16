@@ -11,8 +11,8 @@ export type PerceptionSnapshot = {
     y: number;
     z: number;
   };
-  nearbyPlayers: string[];
-  nearbyEntities: string[];
+  nearbyPlayers: Array<{ name: string; distance: number }>;
+  nearbyEntities: Array<{ name: string; distance: number }>;
   inventorySummary: Array<{
     name: string;
     count: number;
@@ -43,8 +43,14 @@ export function buildPerceptionSnapshot(bot: Bot): PerceptionSnapshot & EventPay
     },
     nearbyPlayers: Object.values(bot.players)
       .filter((player) => player.username !== bot.username && player.entity)
-      .map((player) => player.username),
-    nearbyEntities: nearbyEntities.map((entity) => summarizeEntity(entity)),
+      .map((player) => ({
+        name: player.username,
+        distance: Math.round(player.entity!.position.distanceTo(bot.entity.position))
+      })),
+    nearbyEntities: nearbyEntities.map((entity) => ({
+      name: summarizeEntity(entity),
+      distance: Math.round(entity.position.distanceTo(bot.entity.position))
+    })),
     inventorySummary: bot.inventory.items().map((item) => ({
       name: item.name,
       count: item.count

@@ -6,6 +6,7 @@ import type { SocialController } from "./social/actions.js";
 import { sendChat } from "./skills/chat.js";
 import { collectWood } from "./skills/collectWood.js";
 import { createSharedChest } from "./skills/createSharedChest.js";
+import { explore } from "./skills/explore.js";
 import { followPlayer } from "./skills/followPlayer.js";
 import { stopBot } from "./skills/stop.js";
 import { buildStatusMessage } from "./skills/status.js";
@@ -128,6 +129,20 @@ export async function executeAction(input: ExecuteActionInput): Promise<Executio
               chestLocation: result.chestLocation ?? null,
               craftingTableLocation: result.craftingTableLocation ?? null
             }
+      };
+    }
+    case "explore": {
+      const result = await explore(bot, { eventLogger });
+      if (result.ok) {
+        sendChat(bot, `explored ${result.distanceTravelled} blocks to ${result.destination.x},${result.destination.y},${result.destination.z}`);
+      }
+      return {
+        action: "explore",
+        ok: result.ok,
+        summary: result.ok ? "explore_completed" : "explore_failed",
+        details: result.ok
+          ? { destination: result.destination, distanceTravelled: result.distanceTravelled }
+          : { reason: result.reason }
       };
     }
     case "follow_player": {

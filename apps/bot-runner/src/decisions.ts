@@ -28,6 +28,9 @@ export const ActionSchema = z.discriminatedUnion("kind", [
     kind: z.literal("create_chest")
   }),
   z.object({
+    kind: z.literal("explore")
+  }),
+  z.object({
     kind: z.literal("follow_player"),
     targetPlayer: z.string().min(1)
   }),
