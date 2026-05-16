@@ -22,7 +22,7 @@ services:
     ports:
       - "25565:25565"       # Java Edition
       - "8100:8100"         # BlueMap live 3D world map → http://localhost:8100
-      # Geyser (Bedrock) is NOT directly exposed — BedrockConnect proxies it below
+      - "19133:19132/udp"   # Geyser Bedrock port — BedrockConnect redirects Switch here
     volumes:
       - mc-data:/data
     healthcheck:

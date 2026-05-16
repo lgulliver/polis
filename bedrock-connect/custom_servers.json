@@ -2,7 +2,7 @@
   {
     "name": "Polis",
     "iconUrl": "",
-    "address": "mc-server",
-    "port": 19132
+    "address": "192.168.1.40",
+    "port": 19133
   }
 ]
