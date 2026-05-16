@@ -15,13 +15,14 @@ services:
       # Geyser for Bedrock/Switch clients (Nintendo Switch, mobile)
       PLUGINS: >-
         https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
-      # ViaVersion (19254) bridges Java protocol versions so Geyser works correctly
-      # Dynmap (274) renders a live browser map of the world at :8123
-      SPIGET_RESOURCES: "19254,274"
+      # ViaVersion bridges Java protocol versions so Geyser works correctly
+      SPIGET_RESOURCES: "19254"
+      # BlueMap renders a live 3D browser map of the world at :8100
+      MODRINTH_PROJECTS: "bluemap"
     ports:
       - "25565:25565"       # Java Edition
       - "19132:19132/udp"   # Bedrock Edition via Geyser
-      - "8123:8123"         # Dynmap live world map → http://localhost:8123
+      - "8100:8100"         # BlueMap live 3D world map → http://localhost:8100
     volumes:
       - mc-data:/data
     healthcheck:
