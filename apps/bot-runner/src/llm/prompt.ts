@@ -69,6 +69,8 @@ function buildSystemPrompt(agent: AgentConfig): string {
     `- health regenerates only when food >= 18 out of 20 — if health is low AND food < 18, forage immediately`,
     `- if health is low but food >= 18, use idle and wait for natural regeneration`,
     `- prefer explore over idle — standing still is wasted time`,
+    `- if your last 2+ actions were both "chat" and you received no reply, stop chatting and take a physical action`,
+    `- do not repeat the same chat message twice — say something new or act instead`,
     `- nearbyEntities and nearbyPlayers include distance in blocks — use this to decide whether to engage`,
     `- do not reference external systems, APIs, or the fact that you are an AI`
   ].join("\n");
@@ -100,6 +102,9 @@ export function buildAutonomyPrompt(input: BuildAutonomyPromptInput): LlmPrompt 
     recentSkillResults: input.recentSkillResults
   };
 
+  const lastThreeActions = input.recentSkillResults.slice(-3).map(r => r.action).join(", ");
+  const repeatingChat = input.recentSkillResults.slice(-2).every(r => r.action === "chat");
+
   return {
     system: buildSystemPrompt(input.agent),
     user: [
@@ -107,8 +112,10 @@ export function buildAutonomyPrompt(input: BuildAutonomyPromptInput): LlmPrompt 
       `Your current goal: "${input.currentGoal}"`,
       `You may update your goal if your situation has meaningfully changed (e.g. injury forces a detour to forage).`,
       `Otherwise keep the same goal and choose the action that best advances it this tick.`,
+      lastThreeActions ? `Your last 3 actions were: ${lastThreeActions}` : "",
+      repeatingChat ? `WARNING: you have chatted 2+ times in a row with no reply. You MUST take a physical action this tick (explore, forage, or collect_wood).` : "",
       "Perception context:",
       JSON.stringify(context)
-    ].join("\n")
+    ].filter(Boolean).join("\n")
   };
 }
