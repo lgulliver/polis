@@ -120,7 +120,6 @@ export function runColony(): void {
     }
 
     stopWanderers?.();
-    db.close();
     process.exit(0);
   }
 

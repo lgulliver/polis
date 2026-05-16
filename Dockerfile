@@ -1,8 +1,5 @@
 FROM node:22-alpine
 
-# Native build tools needed for better-sqlite3
-RUN apk add --no-cache python3 make g++
-
 RUN npm install -g pnpm@10.9.0
 
 WORKDIR /app
