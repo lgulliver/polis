@@ -10,4 +10,5 @@ RUN ASSET_URL=$(curl -sf "https://api.github.com/repos/Pugmatt/BedrockConnect/re
 COPY custom_servers.json .
 EXPOSE 19132/udp
 EXPOSE 53/udp
-ENTRYPOINT ["java", "-jar", "BedrockConnect.jar", "-nodb"]
+# dns_port=53 enables the built-in DNS server that intercepts Minecraft domain lookups
+ENTRYPOINT ["java", "-jar", "BedrockConnect.jar", "nodb=true", "dns_port=53"]
