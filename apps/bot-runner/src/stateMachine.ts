@@ -40,7 +40,7 @@ export function createStateMachine(
     if (next === state) return;
     const prev = state;
     state = next;
-    eventLogger?.logEvent("state_transition", { agent: agentName, from: prev, to: next });
+    eventLogger?.logEvent("state_transition", { agent: agentName ?? null, from: prev, to: next });
   }
 
   function getState(): AgentState {

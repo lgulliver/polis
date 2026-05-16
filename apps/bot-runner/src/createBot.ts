@@ -14,6 +14,7 @@ import { buildPerceptionSnapshot } from "./perceive.js";
 import { createSocialController } from "./social/actions.js";
 import { sendChat } from "./skills/chat.js";
 import { installPathRecovery } from "./skills/pathRecovery.js";
+import { installSurvivalMonitor } from "./skills/survival.js";
 
 const { pathfinder } = pathfinderModule;
 
@@ -48,6 +49,7 @@ export function createConfiguredBot(input: CreateBotInput): ConfiguredBot {
 
   bot.loadPlugin(pathfinder);
   const detachPathRecovery = installPathRecovery(bot, eventLogger);
+  const survivalMonitor = installSurvivalMonitor(bot, eventLogger);
 
   const autonomy = createAutonomyController({
     bot,
@@ -135,6 +137,7 @@ export function createConfiguredBot(input: CreateBotInput): ConfiguredBot {
 
   bot.on("end", () => {
     detachPathRecovery();
+    survivalMonitor.stop();
     autonomy.stop();
   });
 

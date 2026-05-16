@@ -37,7 +37,8 @@ export async function explore(bot: Bot, options: ExploreOptions): Promise<Explor
   bot.pathfinder.setMovements(createGroundMovements(bot, {
     canDig: false,
     maxDropDown: 4,
-    allowParkour: true
+    allowParkour: false,
+    allowFreeMotion: false
   }));
 
   try {
