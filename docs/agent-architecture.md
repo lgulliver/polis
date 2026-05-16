@@ -1,10 +1,10 @@
-# Agent architecture
+# Agent Architecture
 
-This document describes the target architecture for Polis agents — how they think, plan, and act. It extends the base [architecture overview](./architecture.md) with the layered reasoning model needed for emergent cultural behaviour.
+This document describes the target architecture for Polis agents — how they think, plan, remember, and act. It covers both the cognitive tiers and the full information flow that feeds into each decision.
+
+---
 
 ## Design principles
-
-These carry forward from the project's founding constraints:
 
 - The LLM never directly controls the Minecraft client
 - All MC actions go through schema-validated deterministic skills
@@ -14,9 +14,9 @@ These carry forward from the project's founding constraints:
 
 ---
 
-## The three reasoning tiers
+## The three cognitive tiers
 
-Each agent runs three LLM layers at different cadences. Slower layers set context for faster ones; faster layers handle moment-to-moment execution.
+Each agent runs three reasoning layers at different cadences. Slower layers set context for faster ones. Each tier is informed by its own slice of memory, trust, and experience.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -25,32 +25,33 @@ Each agent runs three LLM layers at different cadences. Slower layers set contex
 │  Observes all agents. Sets shared priorities. Identifies what   │
 │  the group values right now (survival, territory, prestige).    │
 │  Injects world-level context into each agent's mid-level tick.  │
+│                                                                 │
+│  Input: agent state summaries, DNA affinity map, event log      │
+│  Output: group_context — injected into mid-level as background  │
 └───────────────────────────┬─────────────────────────────────────┘
-                            │ aspirations / priorities
+                            │ group_context
 ┌───────────────────────────▼─────────────────────────────────────┐
 │  MID-LEVEL LLM — Agent mind                                     │
 │  Cadence: ~30 seconds                                           │
-│  Plans the path toward the agent's mission.                     │
-│  Maintains the agent's ego: what it cares about, remembers,     │
-│  and has committed to. Holds the DNA vector as a style prior.   │
-│  Decides the current sub-goal and passes it downward.           │
+│  Plans the path toward the agent's mission. Maintains the ego:  │
+│  what this agent cares about, remembers, and has committed to.  │
+│  Outputs a sub-goal that the state machine will execute.        │
+│                                                                 │
+│  Input: see "Mid-level context" below                           │
+│  Output: sub_goal — a BDD-style declarative goal statement      │
 └───────────────────────────┬─────────────────────────────────────┘
-                            │ current sub-goal + style context
+                            │ sub_goal
 ┌───────────────────────────▼─────────────────────────────────────┐
-│  LOW-LEVEL LLM — Moment-to-moment steering                      │
-│  Cadence: each state machine tick                               │
-│  Given the current sub-goal and world perception, picks the     │
-│  best available action from the allowlist. Handles interrupts   │
-│  (threats, being addressed, social events).                     │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │ validated intent
-┌───────────────────────────▼─────────────────────────────────────┐
-│  STATE MACHINE — Behavioural spine                              │
+│  STATE MACHINE + GOAL RESOLVER — Behavioural spine              │
 │  Stateful, deterministic, fast                                  │
-│  Tracks the agent's current behavioural state and manages       │
-│  transitions. Guard conditions are defined as declarative specs. │
+│  Parses the sub_goal into a sequence of registered step         │
+│  patterns. Owns state transitions. Handles interrupts.          │
+│  Does NOT consult the LLM — the LLM set the goal, not the path. │
+│                                                                 │
+│  Input: sub_goal, current perception, registered step library   │
+│  Output: skill invocations                                      │
 └───────────────────────────┬─────────────────────────────────────┘
-                            │ skill invocation
+                            │ skill calls
 ┌───────────────────────────▼─────────────────────────────────────┐
 │  DETERMINISTIC EXECUTOR — Minecraft client                      │
 │  Schema-validated Mineflayer skills. No arbitrary execution.    │
@@ -60,163 +61,283 @@ Each agent runs three LLM layers at different cadences. Slower layers set contex
 
 ---
 
-## State machine
+## The goal resolver (SpecFlow contract)
 
-The state machine is the behavioural spine between the LLM layers and the executor. It owns:
+The interface between the Mid-level LLM and the state machine is a **declarative goal language** — not a list of named skill enums. The LLM expresses *what it wants to achieve*; the resolver decides *how*.
 
-- The agent's current state (e.g. `Idle`, `Exploring`, `Gathering`, `Building`, `Socialising`, `Resting`, `Planning`)
-- Transitions between states, guarded by declarative conditions
-- Event routing — world events and LLM intent signals trigger transitions
+### Why not enumerated actions?
 
-### States
+Enumerating skills (`collect_wood`, `build_chest`, etc.) creates a 1:1 coupling between LLM vocabulary and skill implementations. Every new capability requires a new action name in the prompt. It also forces the LLM to think in implementation terms rather than goals.
 
-| State | Description |
-|---|---|
-| `Idle` | Observing. No active goal. Default fallback. |
-| `Exploring` | Moving through the world; discovering territory and resources. |
-| `Gathering` | Collecting a specific resource (wood, food, etc.). |
-| `Building` | Executing a construction task at a known location. |
-| `Socialising` | Engaging with another agent or player — chat, proposals, negotiation. |
-| `Resting` | Low-action recovery state; health or food is low. |
-| `Planning` | Mid-level LLM is forming a multi-step plan; agent is stationary. |
+### Goal language
 
-### Guard conditions as declarative specs
+Goals are expressed as declarative outcome statements, optionally with constraints:
 
-Transition guards should be defined in a declarative format (BDD-style), not as embedded logic. This keeps the behavioural rules human-readable, independently testable, and editable without touching the LLM prompt or executor.
+```
+Goal: I have at least 20 oak logs in my inventory
+Constraint: stay within 100 blocks of base
 
-Example:
+Goal: There is a shelter at base with a bed and chest
+Constraint: walls must be at least 4 blocks high
 
-```gherkin
-Feature: Agent responds to a nearby unknown agent
-
-  Scenario: First contact with a stranger
-    Given the agent is in Idle or Exploring state
-    And an agent unknown to this agent enters within 20 blocks
-    And trust for that agent is below 0.3
-    When the next state machine tick fires
-    Then transition to Socialising state
-    And raise social_event: new_contact with payload { stranger: <name> }
-    And pass new_contact to Mid-Level LLM context on next tick
+Goal: I am not hungry (food > 14)
+Goal: The stranger within 30 blocks has been greeted
 ```
 
-The state machine evaluates guards deterministically. The LLMs influence transitions only through the intent signals they emit — they do not write directly to state.
+### Step resolvers
+
+The state machine maintains a **library of step resolvers** — pattern-matched handlers that know how to progress toward a goal given the current world state:
+
+```
+resolver: "I have N <item> in my inventory"
+  → check inventory count
+  → if insufficient: find nearest source, navigate, collect, loop
+  → emits: inventory_secured or inventory_unresolvable
+
+resolver: "There is a <structure> at <location>"
+  → check if structure exists at location
+  → if not: plan construction sequence from available resources
+  → decomposes recursively into resource goals
+
+resolver: "I have greeted <agent>"
+  → check social history
+  → if not greeted: move within range, emit social_event:greeting
+```
+
+New capabilities are added by registering new resolvers, not by changing the LLM prompt. The LLM's goal vocabulary is open-ended; the resolver library is the bounded implementation surface.
+
+### Goal stack
+
+Goals decompose recursively. "Build a shelter" → needs walls, a roof, a door → needs wood → needs trees → navigate and chop. The state machine maintains a goal stack and surfaces failure reasons back up to the Mid-level LLM so it can replan.
 
 ---
 
-## Agent identity and DNA
+## Mid-level context (what feeds into each decision)
 
-Each agent has a persistent identity vector — its "DNA" — that encodes its accumulated personality: tendencies, preferences, and the residue of its experiences.
+When the Mid-level LLM ticks, it receives a rich snapshot assembled from memory, trust, and group context:
+
+### 1. Identity
+- Agent name, archetype, persona, mission
+- Current DNA vector expressed as top-K retrieved memories (see DNA section)
+  - "You have previously: cooperated successfully with Ada, discovered a river to the north, witnessed Hopper break a promise"
+  - These are the experiences that have shaped this agent most recently
+
+### 2. Current state
+- Position, health, food, inventory
+- Current behavioural state (Idle / Exploring / Gathering / Building / Socialising / Resting)
+- Active sub-goal (if any) — the one the state machine is currently executing
+- Recent sub-goal outcomes (succeeded / failed / abandoned + reason)
+
+### 3. Nearby world
+- Visible agents with distances and trust scores
+  - "Ada: 12 blocks away, trust 0.78"
+  - "Unknown wanderer: 25 blocks away, trust 0.10 (never met)"
+- Notable nearby entities (threats, animals, resources) with distances
+- Named places the agent knows about (e.g. "Base Camp: 45 blocks north-east")
+
+### 4. Recent significant events
+- Last N significant events involving this agent (indexed from SQLite)
+  - Cooperation successes and betrayals
+  - Resources secured or lost
+  - Deaths, rituals, discoveries, conflicts
+  - Place namings and territorial claims
+- This gives the agent short-to-medium term narrative context ("Hopper stole from the chest two days ago")
+
+### 5. Commitments
+- Active promises this agent has made (target, content, deadline)
+- Active obligations owed to this agent
+- Fulfilled or broken commitments from known agents (informs trust)
+
+### 6. Group context (from High-level LLM)
+- What the group values right now: "Survival is critical — food stocks are low, two agents are injured"
+- The agent may align with or resist this context — that tension is the seed of faction
+
+### 7. Constraints
+- Hard limits: health/food thresholds, forbidden zones, committed-to locations
+
+---
+
+## Trust
+
+Trust is a per-agent, per-target numeric score (0.0 – 1.0). It is not a vague sentiment — it is an accumulated ledger of interactions.
 
 ### Initialisation
+- Known agents (in config): start at `0.5` (neutral, known)
+- Wanderers/strangers: start at `0.2` (unknown, caution)
+- Agents whose DNA is similar to mine: small positive bias at first contact
 
-At first spawn, embed the agent's `mission + archetype + persona` text using an embedding model. This is the agent's starting DNA — the character it was born with.
+### Updates
+Trust scores change in response to significant events:
 
-### Drift over time
-
-After significant events (betrayal, successful cooperation, ritual participation, death, discovery), compute an embedding of the event and blend it toward the agent's current DNA:
-
-```
-new_dna = normalize((1 - alpha) * current_dna + alpha * event_embedding)
-```
-
-`alpha` is small (0.02–0.05) so personality changes slowly. Events accumulate over many interactions before the character noticeably shifts.
-
-### Uses
-
-| Use | How |
+| Event | Effect |
 |---|---|
-| **Style prior** | Retrieve the top-K memories nearest to the current DNA and inject into the Mid-Level context — the agent naturally recalls experiences aligned with who it is becoming |
-| **Affinity scoring** | Cosine similarity between two agents' DNA → social compatibility; affects trust baseline and alliance likelihood |
-| **Cultural clusters** | Agents whose DNA has converged form natural groups — the embryo of faction, culture, or religion |
-| **Bias detection** | Comparing DNA to initial embedding shows how much an agent has drifted and in what direction |
+| `cooperation_success` with agent | +0.05–0.15 |
+| `betrayal_observed` (they broke a commitment) | −0.2–0.4 |
+| `resource_shared` (they gave something) | +0.05 |
+| `resource_taken` (they took without consent) | −0.1–0.2 |
+| `conflict_initiated` against me | −0.3 |
+| `conflict_resolved` diplomatically | +0.1 |
+| `ritual_participated` together | +0.05 |
+| `death` of trusted agent | recalculate from events |
 
-### Storage
+Trust changes slowly and can never be set directly by the LLM — only by verifiable world events.
 
-DNA vectors live in a persistent store (SQLite to start; vector DB later at scale). Each agent has one current DNA and an append-only history of past vectors with timestamps and event labels.
-
----
-
-## Information flow
-
-```
-World events (chat, death, discovery, proximity)
-  │
-  ▼
-State machine — routes events to subscribers, updates state
-  │
-  ├──► Low-Level LLM — per-tick perception + sub-goal → action intent
-  │
-  ├──► Mid-Level LLM — significant events → updated plan; refreshed sub-goal for Low-Level
-  │         └── reads DNA-retrieved memories as style prior
-  │
-  └──► High-Level LLM — agent state summaries → updated world priorities → inject into Mid-Level
-```
-
-The JSONL event log is the audit trail for all of this. Every decision at every level is logged with its inputs, outputs, and the active DNA vector at the time.
+### Uses in decision-making
+Trust is surfaced to the Mid-level LLM as context, not a decision. The LLM sees "Ada: trust 0.78" and reasons about what that means for its current goal. It might decide to share a resource with Ada but not with the wanderer at 0.1. Trust is also an input to the High-level affinity map (cultural alignment).
 
 ---
 
-## High-level LLM responsibilities
+## DNA and personality
 
-The High-Level layer is shared across all agents — it has visibility of the group, not one individual. It does not issue orders. Instead it injects context: "the group is short on food and two agents are at low health — this week, survival is more important than exploration."
+Each agent has a persistent identity vector — its "DNA" — that encodes accumulated personality as a semantic embedding.
 
-Each agent's Mid-Level receives this context on its tick and weighs it against its personal mission. An agent can ignore or resist the group context — that resistance is itself interesting data.
+### Initialisation
+At first spawn, embed the agent's `mission + archetype + persona` text. This is the starting DNA — the character they were born with.
 
-Future: competing high-level frames (two agents running conflicting group narratives) are the seed of faction, ideology, and schism.
+### Drift
+After significant events, blend the event embedding toward the current DNA:
+
+```
+new_dna = normalize((1 - α) * current_dna + α * event_embedding)
+```
+
+`α` is small (0.02–0.05). Personality shifts slowly across many interactions before it noticeably changes. Dramatic events (death, betrayal, first ritual) carry higher `α`.
+
+### Memory retrieval via DNA
+The DNA vector is used to retrieve relevant memories for the Mid-level prompt. Rather than injecting a raw event list, the system retrieves the top-K events whose embeddings are most similar to the current DNA — these are the experiences that have shaped this agent most recently and are most "on-brand" for who they are now.
+
+This is why an agent with high `ritual_tendency` will recall ceremonies more readily than resource-securing events, even if both happened recently.
+
+### Social affinity
+Cosine similarity between two agents' DNA gives a compatibility score. Agents whose DNA has converged through shared experiences naturally form groups — the embryo of culture, faction, or religion.
+
+### Agent genesis (planned)
+When two agents with high mutual trust and DNA affinity decide to "found a lineage", a new wanderer spawns with a DNA vector that is a blended child of their two vectors, plus a small random mutation:
+
+```
+child_dna = normalize(blend(parent_a_dna, parent_b_dna, ratio=0.5) + noise(σ=0.02))
+```
+
+The child's mission is synthesised by the Mid-level LLM from the two parents' missions. This is not reproduction in a biological sense — it is cultural and ideological transmission.
 
 ---
 
 ## Significant event taxonomy
 
-For DNA drift and Mid-Level memory to work, the event log needs a shared vocabulary of significant events. Starting taxonomy:
+Events that trigger DNA drift, trust updates, and memory storage:
 
-| Event | Description | DNA signal |
-|---|---|---|
-| `cooperation_success` | Agent helped another agent accomplish a shared goal | cooperative drift |
-| `betrayal_observed` | Agent was deceived or had a commitment broken | isolationist drift |
-| `resource_secured` | Agent acquired a scarce resource | resourceful drift |
-| `death` | Agent died | risk-aversion drift |
-| `ritual_participated` | Agent took part in a ceremony | symbolic/communal drift |
-| `discovery` | Agent found something novel (new biome, item, place) | curiosity drift |
-| `conflict_initiated` | Agent started a fight | aggressive drift |
-| `conflict_resolved` | Agent negotiated an end to conflict | diplomatic drift |
-| `place_named` | Agent gave a location a name | territorial drift |
-| `first_contact` | Agent encountered a previously unknown agent | expansive drift |
-
-All of these are already capturable from Minecraft world events + agent chat — no new sensors are required.
+| Event | Description | DNA signal | Trust signal |
+|---|---|---|---|
+| `cooperation_success` | Shared goal accomplished together | cooperative | trust target +0.1 |
+| `betrayal_observed` | Commitment broken | isolationist | trust target −0.3 |
+| `resource_secured` | Acquired scarce resource | resourceful | — |
+| `resource_shared` | Gave resource to another | generous | trust target +0.05 |
+| `death` | Agent died | risk-averse | — |
+| `ritual_participated` | Took part in a ceremony | symbolic/communal | trust participants +0.05 |
+| `discovery` | Found novel place, item, or creature | curious | — |
+| `conflict_initiated` | Started a fight | aggressive | trust target −0.2 |
+| `conflict_resolved` | Negotiated end to conflict | diplomatic | trust target +0.1 |
+| `place_named` | Gave a location a name | territorial | — |
+| `first_contact` | Encountered previously unknown agent | expansive | — |
+| `commitment_made` | Made a promise | — | — |
+| `commitment_kept` | Delivered on a promise | reliable | trust target +0.05 |
+| `commitment_broken` | Failed or refused a promise | unreliable | trust target −0.2 |
 
 ---
 
 ## Persistence requirements
 
-The current JSONL log is the right audit trail but not the right query surface. Before the Mid-Level and High-Level tiers are viable, a persistence layer is needed:
-
 | Data | Storage | Notes |
 |---|---|---|
-| Event log | Append-only JSONL (current) | Keep — replay and audit |
-| Trust scores | SQLite | Per-agent, per-target; versioned with timestamp |
-| Commitments | SQLite | Promises, obligations, deadlines, status |
+| Event log | Append-only JSONL | Audit trail — keep everything |
+| Trust scores | SQLite | Per-agent, per-target; timestamped history |
+| Commitments | SQLite | Content, target, deadline, status |
 | DNA vectors | SQLite (float array) | Current + history with event labels |
-| Named places | SQLite | Coordinate ranges + names + claiming agent |
-| Significant events | SQLite index over JSONL | For fast retrieval into Mid-Level context |
-| Mid-Level plans | SQLite | Current plan + sub-goal per agent |
+| Named places | SQLite | Coordinate range, name, claiming agent |
+| Significant events | SQLite index over JSONL | Fast retrieval into Mid-level context |
+| Mid-level plans | SQLite | Current sub-goal + goal stack per agent |
+| Step resolver library | Code (TypeScript) | Pattern registry, not persisted |
 
-SQLite is sufficient for 5–50 agents. A vector DB (e.g. Qdrant, Chroma) becomes useful at 100+ agents or when DNA similarity queries become hot.
+SQLite is sufficient for 5–50 agents. A vector DB (Qdrant, Chroma) becomes useful at 100+ agents or when DNA similarity queries are hot.
+
+---
+
+## State machine states and transitions
+
+| State | Description |
+|---|---|
+| `Idle` | Observing. No active sub-goal. |
+| `Exploring` | Moving through the world; discovering territory and resources. |
+| `Gathering` | Executing a resource-collection goal. |
+| `Building` | Executing a construction goal at a known location. |
+| `Socialising` | Engaged with another agent or player — greeting, proposal, negotiation. |
+| `Resting` | Low-action recovery; health or food critically low. |
+| `Planning` | Mid-level LLM is forming a new sub-goal; agent is stationary. |
+
+Transitions are guarded by declarative BDD-style specs (human-readable, independently testable). Example:
+
+```gherkin
+Scenario: First contact with a stranger
+  Given the agent is in Idle or Exploring state
+  And an agent unknown to this agent enters within 20 blocks
+  And trust for that agent is below 0.3
+  When the next state machine tick fires
+  Then transition to Socialising state
+  And raise social_event: first_contact with payload { stranger: <name> }
+  And pass first_contact to Mid-level LLM context on next tick
+```
+
+---
+
+## Full information flow
+
+```
+World events (chat, death, discovery, proximity, inventory change)
+  │
+  ▼
+State machine
+  │   routes events to subscribers
+  │   updates behavioural state
+  │   evaluates guard conditions
+  │
+  ├──► Goal resolver (each state machine tick)
+  │     receives: current sub_goal from Mid-level
+  │     matches: step resolvers against current perception
+  │     invokes: Mineflayer skills
+  │     emits: significant events when they occur
+  │
+  ├──► Mid-level LLM (~30s cadence)
+  │     receives: current perception, DNA-retrieved memories,
+  │               trust map, recent events, commitments,
+  │               group_context from High-level, active sub-goal outcome
+  │     outputs:  new sub_goal → state machine
+  │               commitment_updates → SQLite
+  │               place_naming → SQLite
+  │
+  └──► High-level LLM (minutes/hours)
+        receives: all agents' state summaries, DNA affinity matrix
+        outputs:  group_context → injected into every Mid-level tick
+
+JSONL event log ← audit trail for everything above
+SQLite ← trust, DNA, events, plans, places, commitments (queryable)
+```
 
 ---
 
 ## Implementation order
 
-These are the suggested milestones for building this out, each leaving a stable testable foundation before the next:
+1. **State machine skeleton** — states, transitions, guard specs. Wire to existing autonomy controller. No LLM changes yet.
 
-1. **State machine skeleton** — define states, transitions, and the guard spec format. No LLM changes yet. Wire it to the existing autonomy controller.
+2. **SQLite persistence** — replace in-memory trust map. Persist significant events, commitments, named places.
 
-2. **SQLite persistence** — trust, commitments, significant events, named places. Replace in-memory trust map. All existing social event types persist automatically.
+3. **Goal resolver + step library** — replace enumerated action names with pattern-matched resolvers. `collect_wood` becomes a resolver pattern, not a hardcoded skill name.
 
-3. **Mid-Level LLM** — add a slower planning tick. The low-level tick becomes "execute the current sub-goal" rather than "figure out what to do from scratch each time."
+4. **Mid-level LLM** — add slower planning tick that outputs a sub_goal. Low-level becomes "execute current sub-goal" via the resolver.
 
-4. **DNA initialisation and drift** — embed missions at startup. Wire significant events to DNA updates. Expose affinity scores in the perception snapshot.
+5. **DNA initialisation and drift** — embed missions at spawn. Wire significant events to DNA updates. Memory retrieval via similarity.
 
-5. **High-Level LLM** — add a cross-agent reasoning layer. Pipe summaries up from Mid-Level; inject group-context back down.
+6. **Trust wiring** — feed trust scores into Mid-level context. Update trust from significant events.
 
-6. **Faction / cultural clustering** — surface DNA similarity as a first-class concept. Let agents notice their own cultural drift.
+7. **High-level LLM** — cross-agent layer. Group context injected downward.
+
+8. **Agent genesis** — DNA blending to produce new wanderers from high-affinity pairs.
