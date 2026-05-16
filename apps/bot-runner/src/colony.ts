@@ -9,7 +9,7 @@ import {
 } from "./config.js";
 import { createConfiguredBot, type ConfiguredBot } from "./createBot.js";
 import { createLoggers } from "./log.js";
-import { openDatabase } from "./persistence/db.js";
+import { openSqliteDb } from "./persistence/sqliteDb.js";
 import { createAgentRepository, type AgentRepository } from "./persistence/agentRepository.js";
 import { startWandererArrival, wandererConfigFromTraits } from "./population/wanderer.js";
 import { generateRandomTraits, traitVectorToMission } from "./traits.js";
@@ -36,7 +36,7 @@ export function runColony(): void {
   const dataDir = path.resolve(getRepoRoot(), env.DATA_DIR);
   const { logger, eventLogger } = createLoggers(logDir);
 
-  const db = openDatabase(dataDir);
+  const db = openSqliteDb(dataDir);
   const agentRepo = createAgentRepository(db);
   const activeBots = new Map<string, ActiveBot>();
 
@@ -73,6 +73,7 @@ export function runColony(): void {
         traits,
         trustValues: {},
         mission: config.mission ?? null,
+        agentState: "Idle",
         joinedAt: Date.now(),
         lastSeen: Date.now()
       });
@@ -103,6 +104,7 @@ export function runColony(): void {
       traits,
       trustValues: {},
       mission: traitVectorToMission(traits),
+      agentState: "Idle",
       joinedAt: now,
       lastSeen: now
     });
@@ -150,15 +152,16 @@ export function runColony(): void {
     logger.info({ signal }, "shutting down, persisting agent state");
 
     for (const { name, instance } of activeBots.values()) {
-      const trustValues = instance.serializeTrust();
+      const saved = agentRepo.findByName(name);
       agentRepo.upsert({
         name,
         username: name.toLowerCase(),
-        status: agentRepo.findByName(name)?.status ?? "member",
-        traits: agentRepo.findByName(name)?.traits ?? { cooperation: 0.5, risk_tolerance: 0.5, resource_hoarding: 0.5, ritual_tendency: 0.5, skepticism: 0.5, social_dominance: 0.5 },
-        trustValues,
-        mission: agentRepo.findByName(name)?.mission ?? null,
-        joinedAt: agentRepo.findByName(name)?.joinedAt ?? Date.now(),
+        status: saved?.status ?? "member",
+        traits: saved?.traits ?? { cooperation: 0.5, risk_tolerance: 0.5, resource_hoarding: 0.5, ritual_tendency: 0.5, skepticism: 0.5, social_dominance: 0.5 },
+        trustValues: instance.serializeTrust(),
+        mission: saved?.mission ?? null,
+        agentState: instance.getAgentState(),
+        joinedAt: saved?.joinedAt ?? Date.now(),
         lastSeen: Date.now()
       });
     }

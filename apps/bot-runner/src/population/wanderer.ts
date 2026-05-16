@@ -55,6 +55,7 @@ export function startWandererArrival(input: StartWandererArrivalInput): () => vo
       traits,
       trustValues: {},
       mission: config.mission ?? null,
+      agentState: "Idle",
       joinedAt: now,
       lastSeen: now
     });

@@ -25,9 +25,12 @@ type CreateBotInput = {
   knownAgentNames?: string[];
 };
 
+import type { AgentState } from "./stateMachine.js";
+
 export type ConfiguredBot = {
   bot: ReturnType<typeof mineflayer.createBot>;
   serializeTrust: () => Record<string, number>;
+  getAgentState: () => AgentState;
 };
 
 export function createConfiguredBot(input: CreateBotInput): ConfiguredBot {
@@ -147,6 +150,7 @@ export function createConfiguredBot(input: CreateBotInput): ConfiguredBot {
 
   return {
     bot,
-    serializeTrust: () => socialController.serializeTrust()
+    serializeTrust: () => socialController.serializeTrust(),
+    getAgentState: () => autonomy.getState()
   };
 }

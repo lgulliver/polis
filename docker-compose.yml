@@ -91,6 +91,8 @@ services:
       # Only needed when LLM_PROVIDER=openai
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # node:sqlite is experimental in Node 22 — required for SQLite persistence
+      NODE_OPTIONS: "--experimental-sqlite"
     depends_on:
       mc-server:
         condition: service_healthy
