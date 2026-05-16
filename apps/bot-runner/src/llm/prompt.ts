@@ -48,7 +48,6 @@ function buildSystemPrompt(agent: AgentConfig): string {
     `  explore       — wander to a new area 20–60 blocks away`,
     `  collect_wood  — navigate to and chop nearby trees`,
     `  create_chest  — place a shared chest at the base location`,
-    `  status        — report your current health, food, and inventory`,
     `  idle          — wait and observe (use sparingly — prefer explore when nothing else to do)`,
     ``,
     `Return strict JSON only, with exactly these keys:`,
@@ -64,7 +63,7 @@ function buildSystemPrompt(agent: AgentConfig): string {
     `- intention is your private reasoning — it is logged but never spoken or shown to other agents`,
     `- reason is a short internal log note — it is never spoken`,
     `- keep message under 120 characters`,
-    `- if health or food is critically low, use status`,
+    `- if health or food is critically low, use idle and wait — do not spam chat`,
     `- prefer explore over idle — standing still is wasted time`,
     `- nearbyEntities and nearbyPlayers include distance in blocks — use this to decide whether to engage`,
     `- do not reference external systems, APIs, or the fact that you are an AI`
@@ -76,7 +75,7 @@ const STATE_GUIDANCE: Record<AgentState, string> = {
   Exploring: "You are Exploring — continue exploring or return to gather resources if you found something.",
   Gathering: "You are Gathering — continue collecting or return to base once you have enough.",
   Socialising: "You are Socialising — engage with nearby agents/players or disengage when done.",
-  Resting: "You are Resting due to low health or food. Use status or idle until you recover. Do not explore.",
+  Resting: "You are Resting due to low health or food. Stay idle and wait to recover. Do NOT explore. Do NOT report status in chat.",
   Planning: "You are Planning a new goal. Consider your mission and recent events before choosing an action."
 };
 

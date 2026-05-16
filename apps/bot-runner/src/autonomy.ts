@@ -15,7 +15,7 @@ const MAX_RECENT_PERCEPTIONS = 4;
 
 const AutonomyDecisionSchema = z.object({
   intention: z.string().trim().min(1).max(500),
-  action: z.enum(["chat", "status", "collect_wood", "create_chest", "explore", "idle"]),
+  action: z.enum(["chat", "collect_wood", "create_chest", "explore", "idle"]),
   message: z.string().trim().min(1).max(120).nullable(),
   reason: z.string().trim().min(1).max(240)
 }).superRefine((value, context) => {
@@ -100,9 +100,6 @@ function toAction(decision: AutonomyDecision): Action {
         kind: "chat",
         message: decision.message ?? ""
       };
-    }
-    case "status": {
-      return { kind: "status" };
     }
     case "collect_wood": {
       return { kind: "collect_wood" };
