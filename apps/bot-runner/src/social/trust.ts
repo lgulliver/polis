@@ -13,6 +13,7 @@ type CreateTrustMapInput = {
   role: string;
   style: string;
   eventLogger: EventLogger;
+  initialValues?: Record<string, number>;
 };
 
 export type TrustDeltaReason = "gratitude_expressed" | "heard_shelter_proposal";
@@ -23,10 +24,11 @@ export type TrustMap = {
     trustBefore: number;
     trustAfter: number;
   };
+  serialize: () => Record<string, number>;
 };
 
 export function createTrustMap(input: CreateTrustMapInput): TrustMap {
-  const values = new Map<string, number>();
+  const values = new Map<string, number>(Object.entries(input.initialValues ?? {}));
 
   function keyFor(target: string): string {
     return target.trim().toLowerCase();
@@ -59,8 +61,13 @@ export function createTrustMap(input: CreateTrustMapInput): TrustMap {
     };
   }
 
+  function serialize(): Record<string, number> {
+    return Object.fromEntries(values);
+  }
+
   return {
     getTrust,
-    applyDelta
+    applyDelta,
+    serialize
   };
 }

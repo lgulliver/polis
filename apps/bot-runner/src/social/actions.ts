@@ -53,12 +53,14 @@ type CreateSocialControllerInput = {
   eventLogger: EventLogger;
   preferredBaseLocation?: BaseLocation;
   knownBotNames: Iterable<string>;
+  initialTrustValues?: Record<string, number>;
 };
 
 export type SocialController = {
   execute: (action: SocialAction) => SocialExecutionResult;
   observeChat: (sender: string, message: string) => void;
   getTrust: (target: string) => number;
+  serializeTrust: () => Record<string, number>;
 };
 
 function normalizeName(value: string): string {
@@ -179,7 +181,8 @@ export function createSocialController(input: CreateSocialControllerInput): Soci
     agent: input.agent.name,
     role: input.agent.role,
     style: input.agent.language.style,
-    eventLogger: input.eventLogger
+    eventLogger: input.eventLogger,
+    ...(input.initialTrustValues !== undefined ? { initialValues: input.initialTrustValues } : {})
   });
   const knownBotNames = new Set(Array.from(input.knownBotNames, (entry) => normalizeName(entry)));
 
@@ -336,6 +339,7 @@ export function createSocialController(input: CreateSocialControllerInput): Soci
   return {
     execute,
     observeChat,
-    getTrust: trust.getTrust
+    getTrust: trust.getTrust,
+    serializeTrust: trust.serialize
   };
 }

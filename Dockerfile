@@ -1,5 +1,8 @@
 FROM node:22-alpine
 
+# Native build tools needed for better-sqlite3
+RUN apk add --no-cache python3 make g++
+
 RUN npm install -g pnpm@10.9.0
 
 WORKDIR /app
@@ -14,6 +17,6 @@ COPY tsconfig.json ./
 COPY apps/bot-runner/src apps/bot-runner/src/
 COPY configs ./configs/
 
-ENV AGENT=Ada
-
-CMD ["sh", "-c", "pnpm --filter @polis/bot-runner dev -- --agent $AGENT"]
+# Colony mode by default — runs all agents in one process.
+# Pass --agent <Name> to run a single agent instead.
+CMD ["pnpm", "--filter", "@polis/bot-runner", "dev"]

@@ -130,7 +130,7 @@ async function main(): Promise<void> {
     "starting autonomous smoke"
   );
 
-  const agentBot = createConfiguredBot({
+  const { bot: agentBot } = createConfiguredBot({
     env,
     agent,
     eventLogger

@@ -21,9 +21,16 @@ type CreateBotInput = {
   env: RuntimeEnv;
   agent: AgentConfig;
   eventLogger: EventLogger;
+  initialTrustValues?: Record<string, number>;
+  knownAgentNames?: string[];
 };
 
-export function createConfiguredBot(input: CreateBotInput) {
+export type ConfiguredBot = {
+  bot: ReturnType<typeof mineflayer.createBot>;
+  serializeTrust: () => Record<string, number>;
+};
+
+export function createConfiguredBot(input: CreateBotInput): ConfiguredBot {
   const { env, agent, eventLogger } = input;
   const botOptions = {
     host: env.MC_HOST,
@@ -45,20 +52,15 @@ export function createConfiguredBot(input: CreateBotInput) {
     agent,
     eventLogger
   });
-  const socialController = preferredBaseLocation
-    ? createSocialController({
-        bot,
-        agent,
-        eventLogger,
-        preferredBaseLocation,
-        knownBotNames: listConfiguredAgentNames()
-      })
-    : createSocialController({
-        bot,
-        agent,
-        eventLogger,
-        knownBotNames: listConfiguredAgentNames()
-      });
+  const knownNames = input.knownAgentNames ?? listConfiguredAgentNames();
+  const socialController = createSocialController({
+    bot,
+    agent,
+    eventLogger,
+    ...(preferredBaseLocation ? { preferredBaseLocation } : {}),
+    knownBotNames: knownNames,
+    ...(input.initialTrustValues !== undefined ? { initialTrustValues: input.initialTrustValues } : {})
+  });
 
   bot.once("spawn", () => {
     eventLogger.logEvent("bot_spawned", {
@@ -143,5 +145,8 @@ export function createConfiguredBot(input: CreateBotInput) {
     eventLogger.logEvent("perception_tick", snapshot);
   }, 10_000).unref();
 
-  return bot;
+  return {
+    bot,
+    serializeTrust: () => socialController.serializeTrust()
+  };
 }
