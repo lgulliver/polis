@@ -1,5 +1,6 @@
 import type { Bot } from "mineflayer";
 import { z } from "zod";
+import type pino from "pino";
 import type { AgentConfig, RuntimeEnv } from "./config.js";
 import type { Action } from "./decisions.js";
 import { executeAction, type ExecutionResult } from "./execute.js";
@@ -14,7 +15,7 @@ const MAX_RECENT_SKILL_RESULTS = 6;
 const MAX_RECENT_PERCEPTIONS = 4;
 
 const AutonomyDecisionSchema = z.object({
-  goal: z.string().trim().min(1).max(200),
+  goal: z.string().trim().min(1).max(200).optional(),
   intention: z.string().trim().min(1).max(500),
   action: z.enum(["chat", "collect_wood", "create_chest", "explore", "forage", "idle"]),
   message: z.string().trim().min(1).max(120).nullable(),
@@ -57,6 +58,7 @@ type AutonomyControllerInput = {
   env: RuntimeEnv;
   agent: AgentConfig;
   eventLogger: EventLogger;
+  logger?: pino.Logger;
   scheduler?: Scheduler;
   clock?: Clock;
   providerFactory?: (env: RuntimeEnv) => DecisionProvider;
@@ -75,7 +77,6 @@ export type AutonomyController = {
 
 function idleDecision(reason: string): AutonomyDecision {
   return {
-    goal: "recover and reassess",
     intention: "waiting",
     action: "idle",
     message: null,
@@ -205,6 +206,7 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
       input.eventLogger.logEvent("autonomy_tick_started", {
         tickSeconds: input.env.AUTONOMY_TICK_SECONDS
       });
+      input.logger?.info({ agent: input.agent.name, state: stateMachine.getState(), goal: currentGoal }, "autonomy tick");
 
       const prompt = buildAutonomyPrompt({
         agent: input.agent,
@@ -242,6 +244,7 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
             rawText,
             error: parsedDecision.error ?? "invalid_llm_output"
           });
+          input.logger?.warn({ agent: input.agent.name, error: parsedDecision.error, rawText }, "LLM decision invalid — falling back to idle");
         }
 
         decision = parsedDecision.decision;
@@ -250,16 +253,18 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
         input.eventLogger.logEvent("llm_decision_invalid", {
           error: errorMessage
         });
+        input.logger?.error({ agent: input.agent.name, error: errorMessage }, "LLM request failed");
         decision = idleDecision("llm_request_failed");
       }
 
-      // Persist the goal the LLM set this tick
+      // Update persisted goal if LLM provided one and it changed
       if (decision.goal && decision.goal !== currentGoal) {
-        input.eventLogger.logEvent("goal_updated", { previous: currentGoal, current: decision.goal });
+        input.eventLogger.logEvent("goal_updated", { agent: input.agent.name, previous: currentGoal, current: decision.goal });
         currentGoal = decision.goal;
       }
 
       const action = toAction(decision);
+      input.logger?.info({ agent: input.agent.name, action: decision.action, goal: currentGoal, reason: decision.reason }, "action decided");
       input.eventLogger.logEvent("autonomy_action_started", {
         goal: currentGoal,
         intention: decision.intention,
@@ -288,8 +293,10 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
 
       if (result.ok) {
         input.eventLogger.logEvent("autonomy_action_completed", payload);
+        input.logger?.info({ agent: input.agent.name, action: decision.action, summary: result.summary }, "action completed");
       } else {
         input.eventLogger.logEvent("autonomy_action_failed", payload);
+        input.logger?.warn({ agent: input.agent.name, action: decision.action, summary: result.summary }, "action failed");
       }
 
       return true;

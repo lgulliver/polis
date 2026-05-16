@@ -48,6 +48,7 @@ export function runColony(): void {
       env,
       agent: config,
       eventLogger,
+      logger,
       knownAgentNames,
       ...(initialTrustValues !== undefined ? { initialTrustValues } : {})
     });

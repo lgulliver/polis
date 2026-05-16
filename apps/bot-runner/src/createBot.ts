@@ -10,6 +10,7 @@ import {
 import { decideFromChat } from "./decisions.js";
 import { executeAction } from "./execute.js";
 import type { EventLogger } from "./log.js";
+import type pino from "pino";
 import { buildPerceptionSnapshot } from "./perceive.js";
 import { createSocialController } from "./social/actions.js";
 import { sendChat } from "./skills/chat.js";
@@ -22,6 +23,7 @@ type CreateBotInput = {
   env: RuntimeEnv;
   agent: AgentConfig;
   eventLogger: EventLogger;
+  logger?: pino.Logger;
   initialTrustValues?: Record<string, number>;
   knownAgentNames?: string[];
 };
@@ -55,7 +57,8 @@ export function createConfiguredBot(input: CreateBotInput): ConfiguredBot {
     bot,
     env,
     agent,
-    eventLogger
+    eventLogger,
+    logger: input.logger
   });
   const knownNames = input.knownAgentNames ?? listConfiguredAgentNames();
   const socialController = createSocialController({
