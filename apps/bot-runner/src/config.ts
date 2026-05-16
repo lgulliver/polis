@@ -31,7 +31,7 @@ const OptionalBooleanSchema = z.preprocess((value) => {
 
 const LlmProviderSchema = z.preprocess(
   (value) => (value === "" ? undefined : value),
-  z.enum(["openai"]).default("openai")
+  z.enum(["openai", "ollama"]).default("openai")
 );
 
 const EnvSchema = z.object({
@@ -46,7 +46,9 @@ const EnvSchema = z.object({
   LLM_PROVIDER: LlmProviderSchema,
   AUTONOMY_TICK_SECONDS: z.coerce.number().int().min(5).max(3600).default(30),
   OPENAI_API_KEY: z.string().optional(),
-  ANTHROPIC_API_KEY: z.string().optional()
+  ANTHROPIC_API_KEY: z.string().optional(),
+  OLLAMA_BASE_URL: z.string().default("http://localhost:11434/v1"),
+  OLLAMA_MODEL: z.string().default("qwen2.5:7b")
 }).superRefine((env, context) => {
   const coordinates = [env.BASE_X, env.BASE_Y, env.BASE_Z];
   const configuredCount = coordinates.filter((value) => value !== undefined).length;
@@ -66,6 +68,7 @@ const AgentConfigSchema = z.object({
   archetype: z.string().min(1),
   persona: z.string().min(1),
   description: z.string().min(1),
+  mission: z.string().min(1).optional(),
   language: z.object({
     style: z.string().min(1)
   })

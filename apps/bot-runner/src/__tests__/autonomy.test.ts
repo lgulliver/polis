@@ -58,6 +58,7 @@ function createBotStub() {
 describe("parseAutonomyDecision", () => {
   it("validates the strict JSON decision schema", () => {
     const parsed = parseAutonomyDecision(JSON.stringify({
+      intention: "help the group by gathering materials",
       action: "chat",
       message: "I can help gather wood.",
       reason: "announce a simple cooperative intent"
@@ -65,6 +66,7 @@ describe("parseAutonomyDecision", () => {
 
     expect(parsed.valid).toBe(true);
     expect(parsed.decision).toEqual({
+      intention: "help the group by gathering materials",
       action: "chat",
       message: "I can help gather wood.",
       reason: "announce a simple cooperative intent"
@@ -76,6 +78,7 @@ describe("parseAutonomyDecision", () => {
 
     expect(parsed.valid).toBe(false);
     expect(parsed.decision).toEqual({
+      intention: "waiting",
       action: "idle",
       message: null,
       reason: "invalid_llm_output"
@@ -126,6 +129,7 @@ describe("createAutonomyController", () => {
     const provider = {
       getDecision: vi.fn(async () => ({
         rawText: JSON.stringify({
+          intention: "assess current health and resources",
           action: "status",
           message: null,
           reason: "check current wellbeing"

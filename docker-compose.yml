@@ -8,7 +8,9 @@ x-bot-base: &bot-base
     LOG_DIR: /logs
     AUTONOMY_ENABLED: ${AUTONOMY_ENABLED:-false}
     AUTONOMY_TICK_SECONDS: ${AUTONOMY_TICK_SECONDS:-30}
-    LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+    LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+    OLLAMA_BASE_URL: http://ollama:11434/v1
+    OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   depends_on:
@@ -17,13 +19,14 @@ x-bot-base: &bot-base
   restart: on-failure
 
 services:
+  # ── Minecraft server ────────────────────────────────────────────────────────
   mc-server:
     image: itzg/minecraft-server
     environment:
       EULA: "TRUE"
       TYPE: PAPER
       VERSION: "1.21.4"
-      # Bots connect with username only (no Mojang/Microsoft auth)
+      # Bots connect with username only — no Mojang/Microsoft auth required
       ONLINE_MODE: "false"
       DIFFICULTY: hard
       PVP: "false"
@@ -33,8 +36,8 @@ services:
       PLUGINS: >-
         https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
     ports:
-      - "25565:25565"       # Java Edition clients
-      - "19132:19132/udp"   # Bedrock Edition clients (Switch, mobile) via Geyser
+      - "25565:25565"       # Java Edition
+      - "19132:19132/udp"   # Bedrock Edition via Geyser
     volumes:
       - mc-data:/data
     healthcheck:
@@ -43,35 +46,79 @@ services:
       interval: 15s
       retries: 8
 
+  # ── Local LLM (Ollama) ──────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    # NVIDIA GPU passthrough — requires NVIDIA Container Toolkit
+    # (Docker Desktop on Windows with WSL2 handles this automatically)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # ── Agents ──────────────────────────────────────────────────────────────────
   bot-ada:
     <<: *bot-base
     build:
       context: .
       args: { AGENT: Ada }
+    depends_on:
+      mc-server:
+        condition: service_healthy
+      ollama:
+        condition: service_started
 
   bot-hopper:
     <<: *bot-base
     build:
       context: .
       args: { AGENT: Hopper }
+    depends_on:
+      mc-server:
+        condition: service_healthy
+      ollama:
+        condition: service_started
 
   bot-turing:
     <<: *bot-base
     build:
       context: .
       args: { AGENT: Turing }
+    depends_on:
+      mc-server:
+        condition: service_healthy
+      ollama:
+        condition: service_started
 
   bot-mira:
     <<: *bot-base
     build:
       context: .
       args: { AGENT: Mira }
+    depends_on:
+      mc-server:
+        condition: service_healthy
+      ollama:
+        condition: service_started
 
   bot-sagan:
     <<: *bot-base
     build:
       context: .
       args: { AGENT: Sagan }
+    depends_on:
+      mc-server:
+        condition: service_healthy
+      ollama:
+        condition: service_started
 
 volumes:
   mc-data:
+  ollama-data:

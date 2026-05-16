@@ -1,4 +1,5 @@
 import type { RuntimeEnv } from "../config.js";
+import { createOllamaDecisionProvider } from "./ollama.js";
 import { createOpenAiDecisionProvider } from "./openai.js";
 import type { LlmPrompt } from "./prompt.js";
 
@@ -19,6 +20,13 @@ export function createDecisionProvider(env: RuntimeEnv): DecisionProvider {
 
       return createOpenAiDecisionProvider({
         apiKey: env.OPENAI_API_KEY
+      });
+    }
+
+    case "ollama": {
+      return createOllamaDecisionProvider({
+        baseUrl: env.OLLAMA_BASE_URL,
+        model: env.OLLAMA_MODEL
       });
     }
   }

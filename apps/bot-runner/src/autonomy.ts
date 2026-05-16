@@ -13,6 +13,7 @@ const MAX_RECENT_SKILL_RESULTS = 6;
 const MAX_RECENT_PERCEPTIONS = 4;
 
 const AutonomyDecisionSchema = z.object({
+  intention: z.string().trim().min(1).max(500),
   action: z.enum(["chat", "status", "collect_wood", "create_chest", "idle"]),
   message: z.string().trim().min(1).max(120).nullable(),
   reason: z.string().trim().min(1).max(240)
@@ -71,6 +72,7 @@ export type AutonomyController = {
 
 function idleDecision(reason: string): AutonomyDecision {
   return {
+    intention: "waiting",
     action: "idle",
     message: null,
     reason
@@ -241,6 +243,7 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
 
       const action = toAction(decision);
       input.eventLogger.logEvent("autonomy_action_started", {
+        intention: decision.intention,
         action: decision.action,
         reason: decision.reason
       });
@@ -255,6 +258,7 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
       recordSkillResult(result, "autonomy");
 
       const payload = {
+        intention: decision.intention,
         action: decision.action,
         reason: decision.reason,
         summary: result.summary,

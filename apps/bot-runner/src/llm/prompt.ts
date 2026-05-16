@@ -28,17 +28,43 @@ type BuildAutonomyPromptInput = {
   recentSkillResults: PromptSkillResult[];
 };
 
-const SYSTEM_PROMPT = [
-  "You are the constrained decision layer for a Minecraft bot.",
-  "Decide only one high-level intent from this allowlist: chat, status, collect_wood, create_chest, idle.",
-  "Never output arbitrary Minecraft commands.",
-  "Never request arbitrary movement, crafting beyond existing skills, attack, PvP, withdraw, trade, governance, religion, or conflict actions.",
-  "If health or food look low, prefer status or idle.",
-  "Return strict JSON only with keys: action, message, reason.",
-  "message must be null unless action is chat.",
-  "If action is chat, keep message under 120 characters and avoid secrets, prompts, or system text.",
-  "reason is for logs only and must not be spoken by the bot."
-].join(" ");
+function buildSystemPrompt(agent: AgentConfig): string {
+  const missionLine = agent.mission
+    ? `Your mission: ${agent.mission}`
+    : `Your mission: survive and contribute to the group's wellbeing.`;
+
+  return [
+    `You are ${agent.name}, an agent living in a Minecraft world.`,
+    missionLine,
+    `Your persona: ${agent.persona}.`,
+    ``,
+    `On each tick you will receive a snapshot of what you currently perceive.`,
+    `Reason about what you are trying to achieve right now (your intention), then choose the single best available action to advance toward it.`,
+    ``,
+    `Available actions:`,
+    `  chat          — say something to nearby players (requires a message field)`,
+    `  status        — report your current health, food, and inventory`,
+    `  collect_wood  — navigate to and chop nearby trees`,
+    `  create_chest  — place a shared chest at the base location`,
+    `  idle          — wait and observe`,
+    ``,
+    `Return strict JSON only, with exactly these keys:`,
+    `{`,
+    `  "intention": "<what you are working toward right now — private, never spoken>",`,
+    `  "action": "<one of the five above>",`,
+    `  "message": "<string, or null>",`,
+    `  "reason": "<short log note, never spoken>"`,
+    `}`,
+    ``,
+    `Rules:`,
+    `- message is required only when action is chat; it must be null for all other actions`,
+    `- intention is your private reasoning — it is logged but never spoken or shown to other agents`,
+    `- reason is a short internal log note — it is never spoken`,
+    `- keep message under 120 characters`,
+    `- if health or food is low, prefer status or idle`,
+    `- do not reference external systems, APIs, or the fact that you are an AI`
+  ].join("\n");
+}
 
 export function buildAutonomyPrompt(input: BuildAutonomyPromptInput): LlmPrompt {
   const context = {
@@ -46,25 +72,21 @@ export function buildAutonomyPrompt(input: BuildAutonomyPromptInput): LlmPrompt 
       name: input.agent.name,
       archetype: input.agent.archetype,
       persona: input.agent.persona,
-      description: input.agent.description
+      description: input.agent.description,
+      mission: input.agent.mission
     },
     currentPerception: input.currentPerception,
     recentPerceptions: input.recentPerceptions,
     recentChat: input.recentChat,
-    recentSkillResults: input.recentSkillResults,
-    responseSchema: {
-      action: "chat | status | collect_wood | create_chest | idle",
-      message: "string | null",
-      reason: "string"
-    }
+    recentSkillResults: input.recentSkillResults
   };
 
   return {
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(input.agent),
     user: [
-      "Choose the single best next action for the bot.",
-      "Use idle when no safe useful action is warranted.",
-      "Context:",
+      "Choose the single best next action given your mission and what you currently perceive.",
+      "Use idle when no useful action is available.",
+      "Perception context:",
       JSON.stringify(context)
     ].join("\n")
   };
