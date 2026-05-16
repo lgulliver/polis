@@ -69,6 +69,8 @@ export type AutonomyController = {
   start: () => void;
   stop: () => void;
   tick: () => Promise<boolean>;
+  /** Bypass the tick timer and run a decision cycle immediately. */
+  triggerTick: () => Promise<boolean>;
   recordPerception: (snapshot: PerceptionSnapshot) => void;
   recordChat: (sender: string, message: string) => void;
   recordSkillResult: (result: ExecutionResult, source: "manual" | "autonomy") => void;
@@ -325,10 +327,16 @@ export function createAutonomyController(input: AutonomyControllerInput): Autono
     intervalHandle = undefined;
   }
 
+  function triggerTick(): Promise<boolean> {
+    lastDecisionAt = Number.NEGATIVE_INFINITY;
+    return tick();
+  }
+
   return {
     start,
     stop,
     tick,
+    triggerTick,
     recordPerception,
     recordChat,
     recordSkillResult,

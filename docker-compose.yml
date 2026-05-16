@@ -76,6 +76,8 @@ services:
   # ── Colony — all agents in one process ──────────────────────────────────────
   colony:
     build: .
+    ports:
+      - "4327:4327"     # Colony API — chat injection and agent status
     volumes:
       - ./logs:/logs
       - colony-data:/data
@@ -128,10 +130,12 @@ services:
       RCON_HOST: mc-server
       RCON_PORT: "25575"
       RCON_PASSWORD: polisrcon
+      COLONY_API: http://colony:4327
     ports:
       - "4326:4326"
     depends_on:
       - mc-server
+      - colony
 
   # ── Observability ────────────────────────────────────────────────────────────
   # Dozzle: browser log viewer for all containers → http://localhost:9999

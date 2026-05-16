@@ -34,6 +34,8 @@ export type ConfiguredBot = {
   bot: ReturnType<typeof mineflayer.createBot>;
   serializeTrust: () => Record<string, number>;
   getAgentState: () => AgentState;
+  recordChat: (sender: string, message: string) => void;
+  triggerTick: () => Promise<boolean>;
 };
 
 export function createConfiguredBot(input: CreateBotInput): ConfiguredBot {
@@ -157,6 +159,8 @@ export function createConfiguredBot(input: CreateBotInput): ConfiguredBot {
   return {
     bot,
     serializeTrust: () => socialController.serializeTrust(),
-    getAgentState: () => autonomy.getState()
+    getAgentState: () => autonomy.getState(),
+    recordChat: (sender: string, message: string) => autonomy.recordChat(sender, message),
+    triggerTick: () => autonomy.triggerTick()
   };
 }

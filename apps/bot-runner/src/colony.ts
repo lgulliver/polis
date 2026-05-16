@@ -1,3 +1,4 @@
+import http from "node:http";
 import path from "node:path";
 import {
   getRepoRoot,
@@ -192,6 +193,70 @@ export function runColony(): void {
 
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));
+
+  // HTTP API — lets rcon-web inject player messages and query colony status
+  const apiServer = http.createServer((req, res) => {
+    const cors = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, cors); res.end(); return;
+    }
+
+    if (req.method === "GET" && req.url === "/status") {
+      const agents = [...activeBots.values()].map(({ name, instance }) => {
+        const pos = instance.bot.entity?.position;
+        return {
+          name,
+          state: instance.getAgentState(),
+          health: instance.bot.health ?? null,
+          food: instance.bot.food ?? null,
+          position: pos ? { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) } : null
+        };
+      });
+      res.writeHead(200, cors);
+      res.end(JSON.stringify({ agents, count: agents.length }));
+      return;
+    }
+
+    if (req.method === "POST" && req.url === "/chat") {
+      let body = "";
+      req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+      req.on("end", () => {
+        try {
+          const { sender, message } = JSON.parse(body) as { sender: string; message: string };
+          if (!sender || !message) { res.writeHead(400, cors); res.end('{"error":"sender and message required"}'); return; }
+
+          logger.info({ sender, message }, "player chat injected via API");
+
+          // Broadcast to all bot chat records
+          for (const { instance } of activeBots.values()) {
+            instance.recordChat(sender, message);
+          }
+
+          // Trigger immediate tick on any bot whose name appears at the start of the message
+          const msgLower = message.toLowerCase();
+          const triggered: string[] = [];
+          for (const [name, { instance }] of activeBots.entries()) {
+            if (msgLower.startsWith(name.toLowerCase())) {
+              void instance.triggerTick();
+              triggered.push(name);
+            }
+          }
+
+          res.writeHead(200, cors);
+          res.end(JSON.stringify({ ok: true, triggered }));
+        } catch {
+          res.writeHead(400, cors);
+          res.end('{"error":"invalid JSON"}');
+        }
+      });
+      return;
+    }
+
+    res.writeHead(404, cors); res.end('{"error":"not found"}');
+  });
+
+  apiServer.listen(4327, () => logger.info("colony API listening on port 4327"));
 
   logger.info({ agents: activeBots.size }, "colony running");
 }
