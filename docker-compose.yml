@@ -115,22 +115,6 @@ services:
     depends_on:
       - mc-server
 
-  # ── RCON web panel — browser UI for running server commands ─────────────────
-  # Access at http://localhost:4326  (username: admin / password: polisadmin)
-  rcon-web:
-    image: outdead/rcon-web-admin
-    environment:
-      RWA_PASSWORD: polisadmin
-      RWA_RCON_HOST: mc-server
-      RWA_RCON_PORT: "25575"
-      RWA_RCON_PASSWORD: polisrcon
-      RWA_ADMIN: "true"
-      RWA_WEB_RCON: "true"
-    ports:
-      - "4326:4326"
-    depends_on:
-      - mc-server
-
   # ── Observability ────────────────────────────────────────────────────────────
   # Dozzle: browser log viewer for all containers → http://localhost:9999
   dozzle:
