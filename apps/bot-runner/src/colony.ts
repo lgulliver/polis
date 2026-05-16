@@ -62,7 +62,7 @@ export function runColony(): void {
   for (const name of listConfiguredAgentNames()) {
     const config = loadAgentConfig(name);
     const saved = agentRepo.findByName(name);
-    const delay = bootIndex * 3000;
+    const delay = bootIndex * 5000;
     bootIndex++;
 
     setTimeout(() => {
@@ -93,7 +93,7 @@ export function runColony(): void {
   let wandererIndex = bootIndex;
   for (const wanderer of agentRepo.findByStatus("wanderer")) {
     const config = wandererConfigFromTraits(wanderer.name, wanderer.traits);
-    const delay = wandererIndex * 3000;
+    const delay = wandererIndex * 5000;
     wandererIndex++;
     setTimeout(() => {
       connectAgent(config, wanderer.trustValues);

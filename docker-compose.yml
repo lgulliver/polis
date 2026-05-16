@@ -13,6 +13,8 @@ services:
       MAX_PLAYERS: 30
       MEMORY: "2G"
       RCON_PASSWORD: polisrcon
+      # Allow multiple bots to connect from the same IP without throttling
+      CONNECTION_THROTTLE: -1
       # Geyser for Bedrock/Switch clients (Nintendo Switch, mobile)
       PLUGINS: >-
         https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
