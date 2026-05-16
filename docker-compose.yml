@@ -105,13 +105,10 @@ services:
   # Then launch Minecraft → Play → Servers → select Mineplex (or any featured server)
   # BedrockConnect will show a server list; choose "Polis" to join.
   bedrock-connect:
-    image: ghcr.io/pugmatt/bedrockconnect:latest
+    build: ./bedrock-connect
     ports:
       - "19132:19132/udp"   # Bedrock proxy — Switch connects here
       - "53:53/udp"         # DNS — Switch DNS should be set to your PC's local IP
-    volumes:
-      # custom_servers.json lists the servers shown in BedrockConnect's menu
-      - ./configs/bedrockconnect/custom_servers.json:/custom_servers.json
     depends_on:
       - mc-server
 
