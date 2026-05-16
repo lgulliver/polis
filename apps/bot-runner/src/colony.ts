@@ -56,38 +56,48 @@ export function runColony(): void {
     logger.info({ agent: config.name }, "agent connected");
   }
 
-  // Boot all static agents
+  // Boot all static agents with staggered connections (3s apart to avoid server throttle)
+  let bootIndex = 0;
   for (const name of listConfiguredAgentNames()) {
     const config = loadAgentConfig(name);
     const saved = agentRepo.findByName(name);
+    const delay = bootIndex * 3000;
+    bootIndex++;
 
-    if (!saved) {
-      const traits = STATIC_AGENT_TRAITS[name] ?? {
-        cooperation: 0.5, risk_tolerance: 0.5, resource_hoarding: 0.5,
-        ritual_tendency: 0.5, skepticism: 0.5, social_dominance: 0.5
-      };
-      agentRepo.upsert({
-        name,
-        username: config.username,
-        status: "member",
-        traits,
-        trustValues: {},
-        mission: config.mission ?? null,
-        agentState: "Idle",
-        joinedAt: Date.now(),
-        lastSeen: Date.now()
-      });
-      connectAgent(config);
-    } else {
-      connectAgent(config, saved.trustValues);
-    }
+    setTimeout(() => {
+      if (!saved) {
+        const traits = STATIC_AGENT_TRAITS[name] ?? {
+          cooperation: 0.5, risk_tolerance: 0.5, resource_hoarding: 0.5,
+          ritual_tendency: 0.5, skepticism: 0.5, social_dominance: 0.5
+        };
+        agentRepo.upsert({
+          name,
+          username: config.username,
+          status: "member",
+          traits,
+          trustValues: {},
+          mission: config.mission ?? null,
+          agentState: "Idle",
+          joinedAt: Date.now(),
+          lastSeen: Date.now()
+        });
+        connectAgent(config);
+      } else {
+        connectAgent(config, saved.trustValues);
+      }
+    }, delay);
   }
 
-  // Restore persisted wanderers
+  // Restore persisted wanderers (staggered after static agents)
+  let wandererIndex = bootIndex;
   for (const wanderer of agentRepo.findByStatus("wanderer")) {
     const config = wandererConfigFromTraits(wanderer.name, wanderer.traits);
-    connectAgent(config, wanderer.trustValues);
-    logger.info({ agent: wanderer.name }, "wanderer reconnected");
+    const delay = wandererIndex * 3000;
+    wandererIndex++;
+    setTimeout(() => {
+      connectAgent(config, wanderer.trustValues);
+      logger.info({ agent: wanderer.name }, "wanderer reconnected");
+    }, delay);
   }
 
   // On-demand wanderer spawn
@@ -126,8 +136,17 @@ export function runColony(): void {
       } else if (cmd === "polis list") {
         const names = [...activeBots.keys()].join(", ");
         sendChat(firstBot.instance.bot, `colony (${activeBots.size}): ${names}`);
+      } else if (cmd === "polis locate") {
+        for (const { name, instance } of activeBots.values()) {
+          const pos = instance.bot.entity?.position;
+          if (pos) {
+            sendChat(firstBot.instance.bot, `${name}: ${Math.round(pos.x)}, ${Math.round(pos.y)}, ${Math.round(pos.z)}`);
+          } else {
+            sendChat(firstBot.instance.bot, `${name}: not yet spawned`);
+          }
+        }
       } else if (cmd === "polis help") {
-        sendChat(firstBot.instance.bot, "polis spawn | polis list");
+        sendChat(firstBot.instance.bot, "polis spawn | polis list | polis locate");
       }
     });
   }
