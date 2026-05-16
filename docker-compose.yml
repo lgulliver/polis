@@ -28,6 +28,7 @@ services:
     volumes:
       - mc-data:/data
       - ./configs/bluemap:/config/plugins/BlueMap  # pre-accepts download so BlueMap renders on first start
+      - ./configs/geyser/config.yml:/data/plugins/Geyser-Spigot/config.yml  # offline auth — no Microsoft account needed
     healthcheck:
       test: mc-health
       start_period: 120s
