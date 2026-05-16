@@ -2,6 +2,8 @@
 
 Polis is intentionally split into layers so deterministic Minecraft control can mature before any LLM-driven autonomy is introduced.
 
+> For the target agent reasoning design — three-tier LLM, state machine, and DNA vector embeddings — see [agent-architecture.md](./agent-architecture.md).
+
 ## Current milestone flow
 
 `Unraid PaperMC server -> Mineflayer bot runner -> deterministic skills -> JSONL event logs`
