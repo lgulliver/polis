@@ -1,0 +1,77 @@
+x-bot-base: &bot-base
+  build: .
+  volumes:
+    - ./logs:/logs
+  environment:
+    MC_HOST: mc-server
+    MC_PORT: 25565
+    LOG_DIR: /logs
+    AUTONOMY_ENABLED: ${AUTONOMY_ENABLED:-false}
+    AUTONOMY_TICK_SECONDS: ${AUTONOMY_TICK_SECONDS:-30}
+    LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  depends_on:
+    mc-server:
+      condition: service_healthy
+  restart: on-failure
+
+services:
+  mc-server:
+    image: itzg/minecraft-server
+    environment:
+      EULA: "TRUE"
+      TYPE: PAPER
+      VERSION: "1.21.4"
+      # Bots connect with username only (no Mojang/Microsoft auth)
+      ONLINE_MODE: "false"
+      DIFFICULTY: hard
+      PVP: "false"
+      MAX_PLAYERS: 30
+      MEMORY: "2G"
+      # Geyser allows Bedrock clients (Nintendo Switch, mobile) to connect
+      PLUGINS: >-
+        https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
+    ports:
+      - "25565:25565"       # Java Edition clients
+      - "19132:19132/udp"   # Bedrock Edition clients (Switch, mobile) via Geyser
+    volumes:
+      - mc-data:/data
+    healthcheck:
+      test: mc-health
+      start_period: 120s
+      interval: 15s
+      retries: 8
+
+  bot-ada:
+    <<: *bot-base
+    build:
+      context: .
+      args: { AGENT: Ada }
+
+  bot-hopper:
+    <<: *bot-base
+    build:
+      context: .
+      args: { AGENT: Hopper }
+
+  bot-turing:
+    <<: *bot-base
+    build:
+      context: .
+      args: { AGENT: Turing }
+
+  bot-mira:
+    <<: *bot-base
+    build:
+      context: .
+      args: { AGENT: Mira }
+
+  bot-sagan:
+    <<: *bot-base
+    build:
+      context: .
+      args: { AGENT: Sagan }
+
+volumes:
+  mc-data:
