@@ -12,10 +12,12 @@ services:
       PVP: "false"
       MAX_PLAYERS: 30
       MEMORY: "2G"
-      # Geyser for Bedrock/Switch + ViaVersion to bridge Java protocol versions
-      PLUGINS: |
+      # Geyser for Bedrock/Switch clients (Nintendo Switch, mobile)
+      PLUGINS: >-
         https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
-        https://hangar.papermc.io/ViaVersion/ViaVersion/versions/5.3.4/PAPER/download
+      # ViaVersion bridges Java protocol versions so Geyser works correctly
+      # Spigot resource ID 19254 = ViaVersion (fetched via Spiget API)
+      SPIGET_RESOURCES: "19254"
     ports:
       - "25565:25565"       # Java Edition
       - "19132:19132/udp"   # Bedrock Edition via Geyser
