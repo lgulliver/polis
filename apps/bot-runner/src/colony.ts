@@ -12,7 +12,10 @@ import { createLoggers } from "./log.js";
 import { openDatabase } from "./persistence/db.js";
 import { createAgentRepository, type AgentRepository } from "./persistence/agentRepository.js";
 import { startWandererArrival, wandererConfigFromTraits } from "./population/wanderer.js";
+import { generateRandomTraits, traitVectorToMission } from "./traits.js";
+import { pickWandererName } from "./population/names.js";
 import type { TraitVector } from "./traits.js";
+import { sendChat } from "./skills/chat.js";
 
 const STATIC_AGENT_TRAITS: Record<string, TraitVector> = {
   Ada: { cooperation: 0.85, risk_tolerance: 0.25, resource_hoarding: 0.20, ritual_tendency: 0.45, skepticism: 0.30, social_dominance: 0.50 },
@@ -84,6 +87,47 @@ export function runColony(): void {
     const config = wandererConfigFromTraits(wanderer.name, wanderer.traits);
     connectAgent(config, wanderer.trustValues);
     logger.info({ agent: wanderer.name }, "wanderer reconnected");
+  }
+
+  // On-demand wanderer spawn
+  function spawnWanderer(): string {
+    const activeNames = new Set(activeBots.keys());
+    const name = pickWandererName(activeNames);
+    const traits = generateRandomTraits();
+    const config = wandererConfigFromTraits(name, traits);
+    const now = Date.now();
+    agentRepo.upsert({
+      name,
+      username: name.toLowerCase(),
+      status: "wanderer",
+      traits,
+      trustValues: {},
+      mission: traitVectorToMission(traits),
+      joinedAt: now,
+      lastSeen: now
+    });
+    eventLogger.logEvent("wanderer_arrived", { name, traits, mission: config.mission ?? null, trigger: "admin" });
+    connectAgent(config);
+    return name;
+  }
+
+  // Admin chat commands — listened to on the first connected bot
+  const firstBot = [...activeBots.values()][0];
+  if (firstBot) {
+    const knownBotNames = new Set(listConfiguredAgentNames().map((n) => n.toLowerCase()));
+    firstBot.instance.bot.on("chat", (sender: string, message: string) => {
+      if (knownBotNames.has(sender.toLowerCase())) return;
+      const cmd = message.trim().toLowerCase();
+      if (cmd === "polis spawn") {
+        const name = spawnWanderer();
+        sendChat(firstBot.instance.bot, `wanderer incoming: ${name}`);
+      } else if (cmd === "polis list") {
+        const names = [...activeBots.keys()].join(", ");
+        sendChat(firstBot.instance.bot, `colony (${activeBots.size}): ${names}`);
+      } else if (cmd === "polis help") {
+        sendChat(firstBot.instance.bot, "polis spawn | polis list");
+      }
+    });
   }
 
   // Population manager
