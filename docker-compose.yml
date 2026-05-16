@@ -21,8 +21,8 @@ services:
       MODRINTH_PROJECTS: "bluemap"
     ports:
       - "25565:25565"       # Java Edition
-      - "19132:19132/udp"   # Bedrock Edition via Geyser
       - "8100:8100"         # BlueMap live 3D world map → http://localhost:8100
+      # Geyser (Bedrock) is NOT directly exposed — BedrockConnect proxies it below
     volumes:
       - mc-data:/data
     healthcheck:
@@ -94,6 +94,28 @@ services:
       ollama-init:
         condition: service_completed_successfully
     restart: on-failure
+
+  # ── BedrockConnect — Switch / console proxy ─────────────────────────────────
+  # Switch cannot enter custom IPs — this service intercepts featured-server
+  # connections via a DNS override and proxies them to Geyser on mc-server.
+  #
+  # Setup on Switch:
+  #   Settings → Internet → your network → Change Settings
+  #   DNS: Manual → Primary DNS: <your PC's local IP>
+  # Then launch Minecraft → Play → Servers → select Mineplex (or any featured server)
+  # BedrockConnect will show a server list; choose "Polis" to join.
+  bedrock-connect:
+    image: yepcodegames/bedrockconnect:latest
+    ports:
+      - "19132:19132/udp"   # Bedrock proxy — Switch connects here
+      - "53:53/udp"         # DNS — Switch DNS should be set to your PC's local IP
+    environment:
+      NukkitX: "false"
+      DNS_port: "53"
+      # Proxy target: Geyser running inside mc-server container
+      server_ips: "mc-server:19132"
+    depends_on:
+      - mc-server
 
   # ── Observability ────────────────────────────────────────────────────────────
   # Dozzle: browser log viewer for all containers → http://localhost:9999
