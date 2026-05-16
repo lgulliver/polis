@@ -115,6 +115,19 @@ services:
     depends_on:
       - mc-server
 
+  # ── RCON web console — browser UI for running server commands ───────────────
+  # Access at http://localhost:4326 — built from source, no registry needed
+  rcon-web:
+    build: ./apps/rcon-web
+    environment:
+      RCON_HOST: mc-server
+      RCON_PORT: "25575"
+      RCON_PASSWORD: polisrcon
+    ports:
+      - "4326:4326"
+    depends_on:
+      - mc-server
+
   # ── Observability ────────────────────────────────────────────────────────────
   # Dozzle: browser log viewer for all containers → http://localhost:9999
   dozzle:
