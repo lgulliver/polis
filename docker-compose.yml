@@ -8,10 +8,11 @@ services:
       VERSION: "1.21.4"
       # Bots connect with username only — no Mojang/Microsoft auth required
       ONLINE_MODE: "false"
-      DIFFICULTY: hard
+      DIFFICULTY: normal
       PVP: "false"
       MAX_PLAYERS: 30
       MEMORY: "2G"
+      RCON_PASSWORD: polisrcon
       # Geyser for Bedrock/Switch clients (Nintendo Switch, mobile)
       PLUGINS: >-
         https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
@@ -23,8 +24,10 @@ services:
       - "25565:25565"       # Java Edition
       - "8100:8100"         # BlueMap live 3D world map → http://localhost:8100
       - "19133:19132/udp"   # Geyser Bedrock port — BedrockConnect redirects Switch here
+      - "25575:25575"       # RCON — used by rcon-web-admin
     volumes:
       - mc-data:/data
+      - ./configs/bluemap:/config/plugins/BlueMap  # pre-accepts download so BlueMap renders on first start
     healthcheck:
       test: mc-health
       start_period: 120s
@@ -109,6 +112,21 @@ services:
     ports:
       - "19132:19132/udp"   # Bedrock proxy — Switch connects here
       - "53:53/udp"         # DNS — Switch DNS should be set to your PC's local IP
+    depends_on:
+      - mc-server
+
+  # ── RCON web panel — browser UI for running server commands ─────────────────
+  # Access at http://localhost:4326  (username: admin / password: polisadmin)
+  rcon-web:
+    image: itzg/rcon
+    environment:
+      RWA_PASSWORD: polisadmin
+      RWA_RCON_HOST: mc-server
+      RWA_RCON_PORT: 25575
+      RWA_RCON_PASSWORD: polisrcon
+      RWA_ADMIN: "true"
+    ports:
+      - "4326:4326"
     depends_on:
       - mc-server
 
